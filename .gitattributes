@@ -1,0 +1,7 @@
+# 行尾规范：钩子脚本必须保持 LF（CRLF 会破坏 bash 执行）
+*.sh text eol=lf
+*.md text
+*.html text
+*.dart text
+*.yaml text
+*.yml text
