@@ -52,10 +52,6 @@
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
-		F1A003000000000000000001 /* flavor-test-debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Flutter/flavor-test-debug.xcconfig; sourceTree = "<group>"; };
-		F1A003000000000000000002 /* flavor-test-release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Flutter/flavor-test-release.xcconfig; sourceTree = "<group>"; };
-		F1A003000000000000000003 /* flavor-prod-debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Flutter/flavor-prod-debug.xcconfig; sourceTree = "<group>"; };
-		F1A003000000000000000004 /* flavor-prod-release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Flutter/flavor-prod-release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -92,10 +88,6 @@
 				3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */,
 				9740EEB21CF90195004384FC /* Debug.xcconfig */,
 				7AFA3C8E1D35360C0083082E /* Release.xcconfig */,
-				F1A003000000000000000001 /* flavor-test-debug.xcconfig */,
-				F1A003000000000000000002 /* flavor-test-release.xcconfig */,
-				F1A003000000000000000003 /* flavor-prod-debug.xcconfig */,
-				F1A003000000000000000004 /* flavor-prod-release.xcconfig */,
 				9740EEB31CF90195004384FC /* Generated.xcconfig */,
 			);
 			name = Flutter;
@@ -607,29 +599,37 @@
 		};
 		F1A002000000000000000001 /* Debug-test */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F1A003000000000000000001 /* flavor-test-debug.xcconfig */;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = com.dafeiyu.bubble.test;
+				DISPLAY_NAME = "泡泡·测试";
 			};
 			name = "Debug-test";
 		};
 		F1A002000000000000000002 /* Release-test */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F1A003000000000000000002 /* flavor-test-release.xcconfig */;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = com.dafeiyu.bubble.test;
+				DISPLAY_NAME = "泡泡·测试";
 			};
 			name = "Release-test";
 		};
 		F1A002000000000000000003 /* Debug-prod */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F1A003000000000000000003 /* flavor-prod-debug.xcconfig */;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = com.dafeiyu.bubble;
+				DISPLAY_NAME = "泡泡";
 			};
 			name = "Debug-prod";
 		};
 		F1A002000000000000000004 /* Release-prod */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F1A003000000000000000004 /* flavor-prod-release.xcconfig */;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = com.dafeiyu.bubble;
+				DISPLAY_NAME = "泡泡";
 			};
 			name = "Release-prod";
 		};
