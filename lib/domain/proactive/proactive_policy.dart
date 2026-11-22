@@ -1,6 +1,9 @@
 // 主动行为过滤策略（T8.2）：纯函数 + 时钟注入，按 AUTONOMOUS_SYSTEM §2.2 全项顺序判定。
 // 硬限制（用户总开关 / 类别开关）优先级最高（FR-SET-02），任何候选都无法绕过。
+import '../text/text_similarity.dart';
 import 'proactive_models.dart';
+
+export '../text/text_similarity.dart' show contentSimilarity, textBigrams;
 
 class ProactivePolicy {
   const ProactivePolicy();
@@ -188,34 +191,6 @@ class ProactivePolicy {
     }
     return latest;
   }
-}
-
-/// 中文友好的 bigram Jaccard 相似度（0~1，去标点后按二元组集合计算）
-double contentSimilarity(String a, String b) {
-  final setA = _bigrams(a);
-  final setB = _bigrams(b);
-  if (setA.isEmpty || setB.isEmpty) return 0;
-  final intersection = setA.intersection(setB).length;
-  final union = setA.union(setB).length;
-  if (union == 0) return 0;
-  return intersection / union;
-}
-
-Set<String> _bigrams(String text) {
-  final cleaned = text.toLowerCase().replaceAll(
-    RegExp(
-      r'[\s，。！？、；：""'
-      '（）()\[\]{}<>《》,.!?;:~`—…-]',
-    ),
-    '',
-  );
-  final chars = cleaned.runes.map(String.fromCharCode).toList();
-  if (chars.length < 2) return chars.isEmpty ? <String>{} : chars.toSet();
-  final result = <String>{};
-  for (var i = 0; i < chars.length - 1; i++) {
-    result.add('${chars[i]}${chars[i + 1]}');
-  }
-  return result;
 }
 
 /// 当前是否处于勿扰时段（支持跨午夜；起止相同视为无勿扰）

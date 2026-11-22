@@ -16,6 +16,8 @@ import '../pages/memory_inject_preview_page.dart';
 import '../pages/model_manage_page.dart';
 import '../pages/persona_center_page.dart';
 import '../pages/placeholder_page.dart';
+import '../pages/post_detail_page.dart';
+import '../pages/post_generator_page.dart';
 import '../pages/proactive_center_page.dart';
 import '../pages/settings_page.dart';
 import '../pages/thinking_center_page.dart';
@@ -114,6 +116,17 @@ List<GoRoute> _simpleRoutes() => [
       GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsPage(),
+      ),
+      // 说说（阶段 10）：生成器与详情（静态路径须先于 :postId 声明）
+      GoRoute(
+        path: '/post/generate',
+        builder: (context, state) => const PostGeneratorPage(),
+      ),
+      GoRoute(
+        path: '/post/:postId',
+        builder: (context, state) => PostDetailPage(
+          postId: state.pathParameters['postId'] ?? '',
+        ),
       ),
       // 共同经历详情（阶段 9 正式页面）
       GoRoute(

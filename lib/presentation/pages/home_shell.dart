@@ -6,13 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/database/db_provider.dart';
+import '../../data/post/post_generator.dart';
 import '../../data/proactive/proactive_decision_center.dart';
 import '../../data/thinking/thinking_factory.dart';
 import '../../data/thinking/thinking_orchestrator.dart';
 import '../../domain/thinking/thinking_models.dart';
 import '../theme/bubble_colors.dart';
 import 'conversation_list_page.dart';
-import 'placeholder_page.dart';
+import 'posts_page.dart';
 import 'profile_page.dart';
 import 'timeline_page.dart';
 
@@ -33,11 +34,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   /// 前台定时触发间隔（主动程度设置接入后按档位调整，阶段 8）
   static const Duration thinkingInterval = Duration(minutes: 60);
 
-  static const _tabs = <(IconData, String, String)>[
-    (Icons.chat_bubble_outline_rounded, '消息', '消息'),
-    (Icons.favorite_border_rounded, '说说', '说说（阶段 10）'),
-    (Icons.timeline_rounded, '时间线', '共同经历'),
-    (Icons.person_outline_rounded, '我的', '我的'),
+  static const _tabs = <(IconData, String)>[
+    (Icons.chat_bubble_outline_rounded, '消息'),
+    (Icons.favorite_border_rounded, '说说'),
+    (Icons.timeline_rounded, '时间线'),
+    (Icons.person_outline_rounded, '我的'),
   ];
 
   @override
@@ -68,7 +69,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     try {
       final setup = await createThinkingSetup(AppDb.instance);
       _thinking = setup.orchestrator;
-      _proactive = ProactiveDecisionCenter(AppDb.instance);
+      // 决策中心唯一执行入口：post 类候选由生成器真实发布，其余记录
+      _proactive = ProactiveDecisionCenter(
+        AppDb.instance,
+        deliverer: postAwareDeliverer(PostGenerator(AppDb.instance)),
+      );
       await _thinking!.recoverInterrupted();
     } catch (_) {
       // 思考模块失败不影响主界面可用
@@ -107,11 +112,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final (_, _, placeholder) = _tabs[_index];
     return Scaffold(
       body: switch (_index) {
         0 => const ConversationListPage(),
-        1 => PlaceholderPage(title: placeholder),
+        1 => const PostsPage(),
         2 => const TimelinePage(),
         _ => const ProfilePage(),
       },
@@ -119,7 +123,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
-          for (final (icon, label, _) in _tabs)
+          for (final (icon, label) in _tabs)
             NavigationDestination(icon: Icon(icon), label: label),
         ],
       ),
