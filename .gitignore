@@ -1,0 +1,100 @@
+# 泡泡 Bubble V2.0 — .gitignore
+# 仓库为公开仓库：除 Flutter 常规排除外，重点防敏感数据入库。
+
+# ===== Flutter / Dart =====
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+generated_plugin_registrant.*
+# 注意：按 TECH_STACK 规划，pubspec.lock 必须提交入库（CI 与本地版本一致），不忽略。
+
+# Android 辅助开发（不发布 Android 正式版）
+android/.gradle/
+android/local.properties
+android/.idea/
+android/captures/
+android/*.jks
+android/*.keystore
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+
+# iOS（构建产物；爱思助手在本机签名，签名材料严禁入库）
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+*.ipa
+*.xcarchive
+
+# ===== 敏感信息（公开仓库红线） =====
+# 环境变量与密钥配置（占位示例 .env.example 除外）
+.env
+.env.*
+!.env.example
+secrets/
+keys/
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*.key
+*.keystore
+*.jks
+*.mobileprovision
+*.provisionprofile
+*api_key*
+*apikey*
+*API_KEY*
+token_store/
+
+# 数据库与用户数据（本地 SQLite 及任何真实数据）
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+data/
+databases/
+Attachments/
+attachments/
+
+# AstrBot 备份与迁移原始资料（留在本机，绝不入库）
+astrbot/
+astrbot_*/
+_astrbot*/
+_migration*/
+backups/
+backup_*/
+
+# 私人媒体
+*.voice
+*.wav
+*.m4a
+*.mp3
+
+# ===== IDE 与系统 =====
+.idea/
+*.iml
+.vscode/
+.vs/
+*.swp
+Thumbs.db
+.DS_Store
+
+# 日志与临时文件
+*.log
+logs/
+.cargo_ok

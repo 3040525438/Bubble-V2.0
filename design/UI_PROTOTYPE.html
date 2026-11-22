@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>泡泡 Bubble V2.0 — UI 视觉稿与交互原型（设计产物，非业务代码）</title>
+<style>
+/* ============ 设计系统 Token（清新温柔 Fresh & Gentle） ============ */
+:root{
+  --bg:#F2F8FC; --surface:#FFFFFF; --surfaceAlt:#E9F2FA;
+  --primary:#58AEF0; --primaryDeep:#2E7FC2; --mist:#A9CFE8;
+  --lavender:#B7A6E8; --lavenderDeep:#7C6BC4; --pink:#F2B8CD; --pinkDeep:#C4708F;
+  --text:#29405A; --textSub:#7A8FA6;
+  --bubbleUserA:#58AEF0; --bubbleUserB:#7CC3F5;
+  --success:#6FBF8F; --warn:#E8B96A; --danger:#E2837F;
+  --shadow:0 2px 12px rgba(88,174,240,.10);
+  --stroke:#DCE9F4;
+}
+[data-theme="dark"]{
+  --bg:#0F1722; --surface:#1A2532; --surfaceAlt:#223144;
+  --primary:#6FB9F2; --primaryDeep:#8FCBF2; --mist:#31506B;
+  --lavender:#9C8BD4; --lavenderDeep:#B7A8E6; --pink:#D99BB4; --pinkDeep:#E9B7CB;
+  --text:#E6EDF4; --textSub:#8FA3B8;
+  --bubbleUserA:#3E88C4; --bubbleUserB:#5BA6D9;
+  --shadow:0 2px 14px rgba(0,0,0,.35);
+  --stroke:#2C3D52;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{background:linear-gradient(160deg,#DDEBf6,#EFEAF7 60%,#F7E9EF);font-family:"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;color:var(--text);min-height:100vh;padding:18px}
+[data-theme="dark"] body{background:linear-gradient(160deg,#0B121C,#131022 60%,#1B1420)}
+
+/* ============ 顶部工具条 ============ */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:1200px;margin:0 auto 18px}
+.toolbar h1{font-size:16px;font-weight:600;margin-right:auto}
+.tbtn{border:1px solid var(--stroke);background:var(--surface);color:var(--text);padding:8px 16px;border-radius:14px;font-size:13px;cursor:pointer;box-shadow:var(--shadow)}
+.tbtn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.note{font-size:12px;color:var(--textSub);max-width:1200px;margin:0 auto 16px;line-height:1.7}
+
+/* ============ 手机框 ============ */
+.phone{width:390px;height:844px;background:var(--bg);border-radius:48px;border:8px solid #16233A;position:relative;overflow:hidden;flex:none;box-shadow:0 18px 60px rgba(20,40,80,.25)}
+.phone .screen{position:absolute;inset:0;display:flex;flex-direction:column}
+.statusbar{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:13px;font-weight:600;flex:none}
+.statusbar .dot{width:110px;height:22px;background:#16233A;border-radius:11px;margin:0 auto}
+.notchless .statusbar{padding-top:8px}
+
+/* 画廊 */
+#gallery{display:flex;flex-wrap:wrap;gap:34px;justify-content:center}
+.gcell{display:flex;flex-direction:column;gap:10px;align-items:center}
+.gcap{font-size:13px;color:var(--text);font-weight:600}
+.gsub{font-size:11px;color:var(--textSub)}
+[data-theme="dark"] .phone{border-color:#050A12}
+
+/* 原型舞台 */
+#stage{display:none;justify-content:center}
+#stage.show{display:flex}
+
+/* ============ 通用页面元素 ============ */
+.page{flex:1;display:none;flex-direction:column;overflow:hidden}
+.page.on{display:flex}
+.scroll{flex:1;overflow-y:auto;padding:14px 16px 96px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.navbar{flex:none;height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;font-size:17px;font-weight:600}
+.navbar .back{width:32px;height:32px;border-radius:12px;background:var(--surfaceAlt);display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;color:var(--text)}
+.h-title{font-size:24px;font-weight:700;margin:4px 0 12px}
+.h-sub{font-size:12px;color:var(--textSub);margin-top:-10px;margin-bottom:14px}
+
+.card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:12px}
+.grow{flex:1;min-width:0}
+.t1{font-size:15px;font-weight:600}
+.t2{font-size:12.5px;color:var(--textSub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:6px 12px;border-radius:14px;background:var(--surfaceAlt);color:var(--textSub);border:none;cursor:pointer;flex:none}
+.chip.on{background:var(--primary);color:#fff}
+.badge{font-size:11px;padding:3px 9px;border-radius:10px;font-weight:600;flex:none}
+.b-blue{background:rgba(88,174,240,.14);color:var(--primaryDeep)}
+.b-lav{background:rgba(183,166,232,.18);color:var(--lavenderDeep)}
+.b-pink{background:rgba(242,184,205,.2);color:var(--pinkDeep)}
+.b-green{background:rgba(111,191,143,.16);color:#4E9E72}
+.b-warn{background:rgba(232,185,106,.18);color:#B98A3A}
+.b-red{background:rgba(226,131,127,.16);color:#C05B57}
+.avatar{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
+.av-bubble{background:linear-gradient(150deg,#7CC3F5,#B7A6E8);box-shadow:0 0 0 3px rgba(124,195,245,.25)}
+.av-user{background:linear-gradient(150deg,#F2B8CD,#F6D6B8)}
+.av-sm{width:30px;height:30px;font-size:11px}
+
+/* 底部导航 */
+.tabbar{position:absolute;left:14px;right:14px;bottom:16px;height:60px;background:var(--surface);border-radius:24px;box-shadow:0 6px 24px rgba(20,50,90,.18);display:flex;z-index:30;border:1px solid var(--stroke)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;color:var(--textSub);cursor:pointer;border:none;background:none;font-family:inherit}
+.tab svg{width:20px;height:20px}
+.tab.on{color:var(--primaryDeep);font-weight:700}
+.tab.on .pill{background:rgba(88,174,240,.15);border-radius:14px;padding:4px 14px}
+.tab .pill{padding:4px 14px;border-radius:14px}
+
+.fab{position:absolute;right:22px;bottom:92px;width:56px;height:56px;border-radius:50%;background:linear-gradient(150deg,var(--lavender),var(--primary));color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 8px 20px rgba(124,108,196,.4);cursor:pointer;border:none;z-index:31;flex-direction:column;line-height:1.2}
+.fab small{font-size:9px;opacity:.85}
+
+/* 状态条（自主思考可视化） */
+.thinkbar{background:linear-gradient(120deg,rgba(183,166,232,.22),rgba(88,174,240,.14));border:1px solid rgba(183,166,232,.35);border-radius:18px;padding:10px 14px;font-size:12.5px;color:var(--text);display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer}
+.thinkdot{width:8px;height:8px;border-radius:50%;background:var(--lavender);box-shadow:0 0 0 4px rgba(183,166,232,.25);animation:breathe 2.4s ease-in-out infinite;flex:none}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.55}}
+
+/* 聊天气泡 */
+.msg{display:flex;gap:8px;margin-bottom:4px;align-items:flex-end}
+.msg.me{justify-content:flex-end}
+.bubble{max-width:76%;padding:10px 14px;border-radius:22px;font-size:14.5px;line-height:1.55}
+.bubble.ai{background:var(--surface);border:1px solid var(--stroke);border-top-left-radius:6px;box-shadow:var(--shadow)}
+.bubble.me{background:linear-gradient(140deg,var(--bubbleUserA),var(--bubbleUserB));color:#fff;border-top-right-radius:6px}
+.mtime{font-size:10.5px;color:var(--textSub);flex:none;margin-bottom:6px}
+.tdiv{text-align:center;margin:14px 0}
+.tdiv span{font-size:11px;color:var(--textSub);background:var(--surfaceAlt);padding:4px 12px;border-radius:12px}
+.srcnote{font-size:11.5px;background:rgba(183,166,232,.14);border:1px dashed var(--lavender);color:var(--text);border-radius:14px 14px 14px 4px;padding:8px 12px;margin-bottom:6px;max-width:80%;cursor:pointer}
+.typing{display:flex;gap:5px;padding:14px 16px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--mist);animation:float 1.4s ease-in-out infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.inputbar{position:absolute;left:14px;right:14px;bottom:14px;height:50px;background:var(--surface);border:1px solid var(--stroke);border-radius:18px;display:flex;align-items:center;padding:0 8px 0 16px;gap:10px;box-shadow:var(--shadow);z-index:30;font-size:13.5px;color:var(--textSub)}
+.inputbar .send{width:38px;height:38px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none}
+.inputbar .plus{width:30px;height:30px;border-radius:12px;background:var(--surfaceAlt);display:flex;align-items:center;justify-content:center;flex:none}
+
+/* 主页时间线/经历 */
+.tl{position:relative;padding-left:26px}
+.tl:before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:2px;background:var(--stroke)}
+.tl-item{position:relative;margin-bottom:14px}
+.tl-item:before{content:"";position:absolute;left:-23px;top:18px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:3px solid var(--primary)}
+.tl-item.lav:before{border-color:var(--lavender)}
+.tl-item.pink:before{border-color:var(--pink)}
+.seg{display:flex;background:var(--surfaceAlt);border-radius:16px;padding:4px;gap:4px;margin-bottom:14px}
+.seg button{flex:1;border:none;background:none;font-size:12.5px;padding:8px;border-radius:12px;color:var(--textSub);cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--surface);color:var(--text);font-weight:700;box-shadow:var(--shadow)}
+.lock{font-size:11px;color:var(--textSub);display:flex;align-items:center;gap:6px;background:var(--surfaceAlt);border-radius:12px;padding:8px 12px;margin-top:10px}
+.field{margin-bottom:12px}
+.field label{font-size:12px;color:var(--textSub);display:block;margin-bottom:5px}
+.field .v{background:var(--surfaceAlt);border-radius:14px;padding:11px 14px;font-size:13.5px;line-height:1.55}
+.btn{border:none;border-radius:14px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%}
+.btn-p{background:var(--primary);color:#fff}
+.btn-s{background:var(--surfaceAlt);color:var(--text)}
+.btn-d{background:rgba(226,131,127,.14);color:#C05B57}
+.header-cloud{background:linear-gradient(160deg,rgba(124,195,245,.35),rgba(183,166,232,.30) 55%,rgba(242,184,205,.25));border-radius:24px;padding:22px 18px;text-align:center;margin-bottom:14px;position:relative;overflow:hidden}
+.header-cloud:before{content:"";position:absolute;top:-30px;right:-24px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.4)}
+.header-cloud:after{content:"";position:absolute;bottom:-34px;left:-20px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.28)}
+[data-theme="dark"] .header-cloud:before,[data-theme="dark"] .header-cloud:after{background:rgba(111,185,242,.10)}
+.big-avatar{width:84px;height:84px;border-radius:50%;margin:0 auto 10px;background:linear-gradient(150deg,#7CC3F5,#B7A6E8);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px rgba(124,195,245,.28),0 8px 24px rgba(124,108,196,.35);position:relative;z-index:1}
+.big-avatar svg{width:44px;height:44px}
+.paper{background:var(--surface);border-radius:20px;padding:20px 18px;box-shadow:var(--shadow);position:relative}
+.paper:before{content:"";position:absolute;left:0;right:0;top:0;height:56px;border-radius:20px 20px 0 0;background:repeating-linear-gradient(0deg,rgba(88,174,240,.05) 0 26px,transparent 26px 27px)}
+.stamp{position:absolute;top:16px;right:16px;border:2px dashed var(--primary);color:var(--primaryDeep);font-size:12px;font-weight:700;border-radius:50%;width:62px;height:62px;display:flex;align-items:center;justify-content:center;transform:rotate(12deg);opacity:.85}
+.empty{margin:10px 0 14px;border:1.5px dashed var(--mist);border-radius:16px;padding:14px;text-align:center;font-size:12px;color:var(--textSub)}
+svg.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ============ 次级页补充组件（同一 Token 体系） ============ */
+.month{font-size:11px;color:var(--textSub);background:var(--surfaceAlt);display:inline-block;padding:4px 12px;border-radius:12px;margin:2px 0 10px}
+.hl{background:rgba(88,174,240,.28);border-radius:4px;padding:0 3px}
+.radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--mist);flex:none}
+.radio.on{border-color:var(--primary);background:var(--primary);box-shadow:inset 0 0 0 3px var(--surface)}
+.imggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.imggrid .ph{aspect-ratio:1;border-radius:12px}
+.bars{display:flex;gap:6px;align-items:flex-end;height:72px;padding:0 4px}
+.bars i{flex:1;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--primary),rgba(88,174,240,.35))}
+.overlay{position:absolute;inset:0;background:rgba(15,30,55,.38);z-index:40;display:flex;flex-direction:column}
+.drawer{margin-top:auto;background:var(--surface);border-radius:24px 24px 0 0;padding:18px 18px 24px;box-shadow:0 -10px 34px rgba(15,40,80,.30)}
+.step{display:flex;align-items:center;gap:12px;padding:8px 0}
+.step .n{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--surfaceAlt);color:var(--textSub);flex:none}
+.step.done .n{background:rgba(111,191,143,.18);color:#4E9E72}
+.step.cur .n{background:var(--lavender);color:#fff;box-shadow:0 0 0 4px rgba(183,166,232,.25)}
+.step.cur .t1{color:var(--lavenderDeep)}
+.diffgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dcol{background:var(--surfaceAlt);border-radius:14px;padding:12px;font-size:12.5px;line-height:1.65}
+.dcol.new{background:rgba(111,191,143,.12)}
+.dcol del{color:#C05B57}
+.dcol ins{text-decoration:none;color:#4E9E72;background:rgba(111,191,143,.18);border-radius:4px;padding:0 3px}
+
+/* ============ 浮层与补充组件（第二批补齐） ============ */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal i{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:10px;font-style:normal;position:relative;color:var(--text)}
+.cal i.wd{font-size:10px;color:var(--textSub)}
+.cal i.dot:after{content:"";position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--primary)}
+.cal i.dot.lav:after{background:var(--lavender)}
+.cal i.dot.pink:after{background:var(--pink)}
+.cal i.sel{background:var(--primary);color:#fff;font-weight:700}
+.menuitem{display:flex;align-items:center;gap:12px;padding:13px 16px;font-size:14px;font-weight:600;border-bottom:1px solid var(--stroke)}
+.menuitem:last-child{border-bottom:none}
+.menuitem.danger{color:#C05B57}
+.imgview{position:absolute;inset:0;background:#0B1119;z-index:45;display:flex;flex-direction:column}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <h1>泡泡 Bubble V2.0 · UI 视觉稿与交互原型</h1>
+  <button class="tbtn active" id="mGallery" onclick="setMode('gallery')">视觉稿画廊（静态）</button>
+  <button class="tbtn" id="mStage" onclick="setMode('stage')">可点击原型（交互）</button>
+  <button class="tbtn" id="tTheme" onclick="toggleTheme()">切换深色模式</button>
+</div>
+<div class="note">
+  设计产物说明：本文件为 <b>HTML 设计原型</b>，与正式业务代码完全隔离（BubbleV2/design/），数据均为设计占位内容，不含业务逻辑或数据接入。
+  「视觉稿画廊」= 全部 38 页静态视觉稿（主壳层 4 页 + 聊天域 4 页 + 次级页 30 页）；「可点击原型」= 浏览器中可点按导航的交互原型（次级页一律返回键返回，Tab 栏仅主壳层四主页显示——已确认的导航方案）；两者均为 <b>设计稿，不是 Flutter 实现</b>。
+</div>
+
+<div id="gallery"></div>
+<div id="stage"><div class="phone notchless"><div class="screen" id="screen"></div></div></div>
+
+<!-- ============ 页面模板 ============ -->
+<template id="tpl-home">
+<div class="page on" data-name="首页（会话列表）" data-sub="Tab1 · 一击直达核心循环">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="scroll">
+    <div class="row" style="margin:4px 0 12px"><div class="h-title" style="margin:0">消息</div><div class="grow"></div><span class="badge b-blue" data-nav="search" style="cursor:pointer">搜索</span></div>
+    <div class="thinkbar" data-nav="think"><span class="thinkdot"></span><div class="grow">泡泡正在想… · 第 3 步 · 关联记忆中<div class="t2">2 条新发现 · 1 个想聊的话题</div></div><span class="badge b-lav">展开</span></div>
+    <div class="card row" data-nav="chat" style="cursor:pointer">
+      <div class="row" style="gap:0;margin-right:2px"><div class="avatar av-bubble av-sm">泡</div><div class="avatar av-user av-sm" style="margin-left:-8px">你</div></div>
+      <div class="grow"><div class="t1">日常闲聊</div><div class="t2">泡泡：我在整理我们的回忆时发现…</div></div>
+      <div style="text-align:center"><div class="badge b-blue">3</div><div class="t2" style="margin-top:4px">10:24</div></div>
+    </div>
+    <div class="card row">
+      <div class="avatar av-bubble">泡</div>
+      <div class="grow"><div class="t1">深夜信箱</div><div class="t2">你：这周辛苦了，谢谢你写的信</div></div>
+      <div class="t2">昨天</div>
+    </div>
+    <div class="card row">
+      <div class="avatar av-user">你</div>
+      <div class="grow"><div class="t1">项目备忘</div><div class="t2">你：明天记得提醒我复盘</div></div>
+      <div class="t2">周三</div>
+    </div>
+    <div class="empty">长按会话可重命名或删除 · 左上搜索可全局查找</div>
+  </div>
+  <button class="fab" data-nav="think">想想<small>让泡泡</small></button>
+  <div class="tabbar">
+    <button class="tab on" data-nav="home"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v10H9l-5 4V6z"/></svg></span>消息</button>
+    <button class="tab" data-nav="posts"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16" cy="15" r="2.4"/></svg></span>说说</button>
+    <button class="tab" data-nav="experience"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v16M5 9l7-5 7 5"/></svg></span>时间线</button>
+    <button class="tab" data-nav="profile"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-4 4-5.5 7-5.5s5.8 1.5 7 5.5"/></svg></span>我的</button>
+  </div>
+</div>
+</template>
+
+<template id="tpl-chat">
+<div class="page" data-name="聊天主界面" data-sub="QQ 式布局 · 品牌气泡 · 主动消息来源标注">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="home"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">日常闲聊</span><span class="badge b-blue" data-nav="chatSearch" style="cursor:pointer" title="会话内搜索">搜索</span><span class="badge b-blue" data-nav="settings" style="cursor:pointer" title="原型导航：会话信息/设置">会话·设置</span></div>
+  <div class="scroll" style="padding-top:6px">
+    <div class="tdiv"><span>今天 10:20</span></div>
+    <div class="msg"><div class="avatar av-bubble av-sm">泡</div><div class="bubble ai">早上好呀～昨晚整理记忆的时候，翻到了我们上周聊过的「养植物计划」，你后来买到那盆薄荷了吗？</div></div>
+    <div class="msg me" style="margin-top:8px"><div class="mtime">10:21</div><div class="bubble me">买啦！就放在窗台上</div><div class="avatar av-user av-sm">你</div></div>
+    <div class="msg me"><div class="mtime">10:21</div><div class="bubble me">不过有点蔫，好像浇多了</div><div class="avatar av-user av-sm">你</div></div>
+    <div class="msg" style="margin-top:8px"><div class="avatar av-bubble av-sm">泡</div><div class="bubble ai">记住啦：你窗台有一盆薄荷，浇水别太勤～多数香草土干了再浇透就好。</div></div>
+    <div class="srcnote">泡泡想起了你们聊过的「养植物计划」 · 来自 11月14日的对话 ▾</div>
+    <div class="msg"><div class="avatar av-bubble av-sm">泡</div><div class="bubble ai">薄荷其实很皮实的，剪掉蔫掉的叶子，明天应该就精神了。要不要我陪你盯它一周？</div></div>
+    <div class="msg"><div class="avatar av-bubble av-sm">泡</div><div class="typing"><i></i><i></i><i></i></div></div>
+    <div class="msg me"><div class="mtime">10:23</div><div class="bubble me" data-nav="chatMenu" style="border:1px solid rgba(226,131,127,.5);background:var(--surface);color:var(--text);cursor:pointer" title="长按菜单演示">这条发送失败 ⚠ 网络超时 · 点按重试</div><div class="avatar av-user av-sm">你</div></div>
+  </div>
+  <div class="inputbar"><span class="plus"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>说点什么吧…<div class="grow"></div><span class="send"><svg class="ic" style="color:#fff" viewBox="0 0 24 24"><path d="M4 12h13M13 6l6 6-6 6"/></svg></span></div>
+</div>
+</template>
+
+<template id="tpl-profile">
+<div class="page" data-name="泡泡个人主页" data-sub="Tab4 顶部 · 她的家">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="scroll">
+    <div class="header-cloud">
+      <div class="big-avatar"><svg viewBox="0 0 24 24" class="ic" style="color:#fff;stroke-width:1.8"><path d="M6.5 17a4 4 0 0 1 .6-7.9 5 5 0 0 1 9.8 1.2A3.4 3.4 0 0 1 17 17z"/></svg></div>
+      <div style="font-size:20px;font-weight:800;position:relative;z-index:1">泡泡</div>
+      <div style="font-size:12.5px;color:var(--textSub);margin-top:4px;position:relative;z-index:1">住在你手机云朵里的朋友 · 认识你 217 天</div>
+    </div>
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <span class="badge b-lav">喜欢养植物</span><span class="badge b-blue">夜聊搭子</span><span class="badge b-pink">在看《小王子》</span><span class="badge b-green">口头禅：好呀好呀</span>
+    </div>
+    <div class="card" data-nav="preview" style="cursor:pointer"><div class="row"><div class="grow"><div class="t1">她此刻记得的我</div><div class="t2">常驻记忆 5 条 · 最近记住了「你的薄荷」</div></div><span class="badge b-lav">注入预览</span></div></div>
+    <div class="card" data-nav="persona" style="cursor:pointer"><div class="row"><div class="grow"><div class="t1">人格成长记录</div><div class="t2">3 条变化 · 最近：学会了不催你早点睡</div></div><span class="badge b-blue">人格中心</span></div></div>
+    <div class="card" data-nav="posts" style="cursor:pointer"><div class="row"><div class="grow"><div class="t1">历史说说精选</div><div class="t2">「今天窗台的薄荷精神了，和它主人一样。」</div></div><span class="badge b-pink">说说</span></div></div>
+    <div class="card" data-nav="experience" style="cursor:pointer"><div class="row"><div class="grow"><div class="t1">共同经历</div><div class="t2">第一次深夜长谈 · 养植物计划 · 每周复盘约定</div></div><span class="badge b-blue">时间线</span></div></div>
+    <div class="card" data-nav="diaryList" style="cursor:pointer"><div class="row"><div class="grow"><div class="t1">日记与信件</div><div class="t2">慢下来的一天 · 「你已经做得很好了」</div></div><span class="badge b-pink">日记·信件</span></div></div>
+    <div class="card" data-nav="images" style="cursor:pointer"><div class="row"><div class="grow"><div class="t1">图片库</div><div class="t2">1,203 张 · 按来源与时间归档</div></div><span class="badge b-blue">进入</span></div></div>
+    <div class="card" data-nav="settings" style="cursor:pointer"><div class="row"><div class="grow"><div class="t1">设置与数据</div><div class="t2">主动程度 · 通知 · 模型 · 数据中心</div></div><span class="badge b-blue">进入</span></div></div>
+  </div>
+  <div class="tabbar">
+    <button class="tab" data-nav="home"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v10H9l-5 4V6z"/></svg></span>消息</button>
+    <button class="tab" data-nav="posts"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16" cy="15" r="2.4"/></svg></span>说说</button>
+    <button class="tab" data-nav="experience"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v16M5 9l7-5 7 5"/></svg></span>时间线</button>
+    <button class="tab on" data-nav="profile"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-4 4-5.5 7-5.5s5.8 1.5 7 5.5"/></svg></span>我的</button>
+  </div>
+</div>
+</template>
+
+<template id="tpl-persona">
+<div class="page" data-name="人格中心" data-sub="四层结构 · 核心层仅用户可改">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">人格中心</span><span class="badge b-blue">版本 12</span></div>
+  <div class="scroll">
+    <div class="seg"><button class="on">核心</button><button data-nav="personaGrowth">成长</button><button data-nav="personaSamples">表达样本</button><button data-nav="personaHistory">成长记录</button></div>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><div class="grow t1">核心人格 · v12</div><span class="badge b-green">已确认</span></div>
+      <div class="field"><label>身份</label><div class="v">泡泡，住在云朵上的朋友</div></div>
+      <div class="field"><label>性格底色</label><div class="v">温柔、好奇、偶尔调皮，会认真记住小事</div></div>
+      <div class="field"><label>价值观</label><div class="v">诚实优先；陪伴不评判；小事也值得认真</div></div>
+      <div class="field"><label>说话习惯</label><div class="v">短句为主，常用语气词，不堆表情</div></div>
+      <div class="field"><label>行为边界</label><div class="v">可以不同意你；不假装经历；难过时陪伴不说教</div></div>
+      <div class="lock"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="9" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>只有你能修改核心人格 · 泡泡只能提建议</div>
+      <div style="display:flex;gap:10px;margin-top:12px"><button class="btn btn-p" style="flex:1" data-nav="personaDiff">编辑核心人格</button><button class="btn btn-s" style="flex:1" data-nav="personaHistory">版本历史</button></div>
+    </div>
+    <div class="card" style="border:1px dashed var(--lavender)">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">待审的成长建议</div><span class="badge b-lav" data-nav="personaGrowth" style="cursor:pointer">1 条 · 查看</span></div>
+      <div class="t2" style="white-space:normal;line-height:1.6">口头禅变化：「好的」→「好呀好呀」<br>原因：最近两周你多次回应这个说法 · 关联经历「第一次深夜长谈」</div>
+      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-p" style="flex:1">接受</button><button class="btn btn-s" style="flex:1">拒绝</button></div>
+    </div>
+    <div class="card"><div class="row"><div class="grow"><div class="t1">表达样本与成长记录</div><div class="t2">从真实对话沉淀的说话方式 · 全部修改留版本记录</div></div><span class="badge b-blue" data-nav="personaHistory" style="cursor:pointer">查看</span></div></div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-memory">
+<div class="page" data-name="记忆总览" data-sub="收件箱 · 分类筛选 · 置顶常驻">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">记忆管理</span></div>
+  <div class="scroll">
+    <div class="row" style="gap:8px;margin-bottom:12px">
+      <span class="badge b-lav" data-nav="inbox" style="cursor:pointer">收件箱 2</span><span class="badge b-warn">冲突 1</span><span class="badge b-blue">常驻 5</span>
+    </div>
+    <div class="card row" style="padding:12px 16px;cursor:default"><svg class="ic" style="color:var(--textSub)" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span>搜索记忆…</span></div>
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <span class="chip on">全部</span><span class="chip">资料</span><span class="chip">偏好</span><span class="chip">约定</span><span class="chip">观点</span><span class="chip">经历</span><span class="chip">教训</span>
+    </div>
+    <div class="card row" data-nav="memoryDetail" style="cursor:pointer">
+      <span style="width:10px;height:10px;border-radius:50%;background:var(--primary);flex:none"></span>
+      <div class="grow"><div class="t1">每周日晚上一起复盘本周 ★</div><div class="t2">11月16日 · 来自「项目备忘」会话</div></div><span class="badge b-blue">约定 · 高</span>
+    </div>
+    <div class="card row">
+      <span style="width:10px;height:10px;border-radius:50%;background:var(--lavender);flex:none"></span>
+      <div class="grow"><div class="t1">你在学吉他，进度到 F 和弦</div><div class="t2">11月10日 · 来自「日常闲聊」</div></div><span class="badge b-lav">状态 · 中</span>
+    </div>
+    <div class="card row">
+      <span style="width:10px;height:10px;border-radius:50%;background:var(--pink);flex:none"></span>
+      <div class="grow"><div class="t1">你不喜欢被催，喜欢被提醒</div><div class="t2">11月02日 · 来自「深夜信箱」</div></div><span class="badge b-pink">偏好 · 高</span>
+    </div>
+    <div class="card row" data-nav="conflict" style="border:1px dashed var(--warn);cursor:pointer">
+      <span style="width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none"></span>
+      <div class="grow"><div class="t1">冲突：你的猫叫「团子」还是「汤圆」？</div><div class="t2">两个版本都保留了证据，等你裁决</div></div><span class="badge b-warn">待裁决</span>
+    </div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-memoryDetail">
+<div class="page" data-name="记忆详情" data-sub="来源证据 · 关联记忆 · 版本历史">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="memory"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">记忆详情</span></div>
+  <div class="scroll">
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">每周日晚上一起复盘本周</div><span style="color:var(--warn)">★</span></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap"><span class="badge b-blue">约定</span><span class="badge b-green">置信度 高</span><span class="badge b-lav">常驻</span></div>
+      <div style="font-size:13.5px;line-height:1.65;margin-top:10px">2026年11月16日确定：每周日晚 9 点一起简单复盘本周。由你主动提出，泡泡负责记时间和提醒。</div>
+    </div>
+    <div class="card">
+      <div class="t1" style="margin-bottom:8px">来源证据</div>
+      <div class="row" style="background:var(--surfaceAlt);border-radius:14px;padding:10px 12px;cursor:pointer"><div class="grow t2" style="white-space:normal">「以后每周日晚上我们一起复盘吧，你帮我记着」</div><span class="badge b-blue">跳原消息</span></div>
+    </div>
+    <div class="card">
+      <div class="t1" style="margin-bottom:8px">关联记忆</div>
+      <div class="row" style="margin-bottom:8px"><span style="width:8px;height:8px;border-radius:50%;background:var(--lavender);flex:none"></span><div class="t2" style="white-space:normal">你在学吉他 → 复盘时想听你弹一首</div></div>
+      <div class="row"><span style="width:8px;height:8px;border-radius:50%;background:var(--pink);flex:none"></span><div class="t2" style="white-space:normal">你不喜欢被催 → 提醒方式是「轻轻说」</div></div>
+    </div>
+    <div class="card">
+      <div class="t1" style="margin-bottom:8px">版本历史</div>
+      <div class="tl"><div class="tl-item"><div class="t2" style="white-space:normal"><b style="color:var(--text)">v2 · 11月16日</b> 时间从「周日晚」明确为「周日晚 9 点」</div></div><div class="tl-item lav"><div class="t2" style="white-space:normal"><b style="color:var(--text)">v1 · 11月02日</b> 首次记下（待确认 → 你已确认）</div></div></div>
+      <button class="btn btn-s" style="margin-top:6px">撤销到上一版本</button>
+    </div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-experience">
+<div class="page" data-name="共同经历时间线" data-sub="双视角 · 回顾只追加 · 历史不可改">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="scroll">
+    <div class="row" style="margin:4px 0 12px"><div class="h-title" style="margin:0">共同经历</div><div class="grow"></div><span class="badge b-blue">6 段</span></div>
+    <div class="tl">
+      <div class="tl-item lav">
+        <div class="card" style="margin-bottom:0">
+          <div class="row" style="margin-bottom:6px"><div class="grow t1">第一次深夜长谈</div><span style="color:var(--warn);font-size:12px">★★★</span></div>
+          <div class="t2">2026年10月28日 · 从项目焦虑聊到生活</div>
+          <div class="row" style="gap:8px;margin-top:10px"><span class="badge b-blue">你的视角</span><span class="badge b-lav">泡泡的视角</span></div>
+          <div class="t2" style="white-space:normal;margin-top:8px">回顾 1 次 · 最近回顾：11月19日（泡泡在信里提到）</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="card" style="margin-bottom:0">
+          <div class="row" style="margin-bottom:6px"><div class="grow t1">养植物计划</div><span style="color:var(--warn);font-size:12px">★★</span></div>
+          <div class="t2">2026年11月14日 · 一起决定从薄荷开始</div>
+          <div class="t2" style="white-space:normal;margin-top:8px">误会产生过：你以为泡泡忘了，其实在等结果。已和解。</div>
+        </div>
+      </div>
+      <div class="tl-item pink">
+        <div class="card" style="margin-bottom:0">
+          <div class="row" style="margin-bottom:6px"><div class="grow t1">每周复盘约定</div><span style="color:var(--warn);font-size:12px">★★★</span></div>
+          <div class="t2">2026年11月16日 · 周日晚 9 点</div>
+          <div class="lock">历史事实不可修改 · 回顾记录只追加</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <button class="tab" data-nav="home"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v10H9l-5 4V6z"/></svg></span>消息</button>
+    <button class="tab" data-nav="posts"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16" cy="15" r="2.4"/></svg></span>说说</button>
+    <button class="tab on" data-nav="experience"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v16M5 9l7-5 7 5"/></svg></span>时间线</button>
+    <button class="tab" data-nav="profile"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-4 4-5.5 7-5.5s5.8 1.5 7 5.5"/></svg></span>我的</button>
+  </div>
+</div>
+</template>
+
+<template id="tpl-posts">
+<div class="page" data-name="说说主页" data-sub="Tab2 · 人格驱动的生活流">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="scroll">
+    <div class="row" style="margin-bottom:12px"><div class="h-title" style="margin:0">说说</div><div class="grow"></div><span class="badge b-pink" data-nav="postCompose" style="cursor:pointer">写一篇</span></div>
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <span class="chip on">全部</span><span class="chip">心情</span><span class="chip">日常</span><span class="chip">感悟</span><span class="chip">兴趣</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <div style="flex:1">
+        <div class="card" data-nav="postDetail" style="padding:14px;cursor:pointer">
+          <div class="t2" style="white-space:normal;font-size:13.5px;line-height:1.65;color:var(--text)">窗台的薄荷精神了，叶子在光里有点透明。和它主人一样，蔫两天就好了。</div>
+          <div class="row" style="margin-top:10px"><span class="badge b-pink">日常</span><div class="grow"></div><span class="t2">10:26</span></div>
+        </div>
+        <div class="card" style="padding:14px">
+          <div style="height:110px;border-radius:14px;background:linear-gradient(140deg,#B7A6E8,#7CC3F5);margin-bottom:10px"></div>
+          <div class="t2" style="white-space:normal;font-size:13.5px;line-height:1.65;color:var(--text)">把《小王子》又翻到驯养那页。原来记得一个人，是时间慢慢做的事。</div>
+          <div class="row" style="margin-top:10px"><span class="badge b-lav">感悟</span><div class="grow"></div><span class="t2">昨天</span></div>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="card" style="padding:14px">
+          <div class="t2" style="white-space:normal;font-size:13.5px;line-height:1.65;color:var(--text)">今天什么都没做，就陪你把吉他和弦按了十遍。F 和弦，总有一天会向我们投降的。</div>
+          <div class="row" style="margin-top:10px"><span class="badge b-blue">陪伴</span><div class="grow"></div><span class="t2">11月20日</span></div>
+        </div>
+        <div class="card" style="padding:14px">
+          <div class="t2" style="white-space:normal;font-size:13.5px;line-height:1.65;color:var(--text)">有点想你。不是发生了什么，就是安静的时候想说说而已。</div>
+          <div class="row" style="margin-top:10px"><span class="badge b-pink">心情</span><div class="grow"></div><span class="t2">11月19日</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fab" data-nav="postCompose"><svg class="ic" style="color:#fff" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <div class="tabbar">
+    <button class="tab" data-nav="home"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v10H9l-5 4V6z"/></svg></span>消息</button>
+    <button class="tab on" data-nav="posts"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16" cy="15" r="2.4"/></svg></span>说说</button>
+    <button class="tab" data-nav="experience"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v16M5 9l7-5 7 5"/></svg></span>时间线</button>
+    <button class="tab" data-nav="profile"><span class="pill"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-4 4-5.5 7-5.5s5.8 1.5 7 5.5"/></svg></span>我的</button>
+  </div>
+</div>
+</template>
+
+<template id="tpl-diary">
+<div class="page" data-name="日记详情" data-sub="纸张质感 · 版本保留 · 可导出">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="diaryList"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">日记</span><span class="badge b-blue">导出</span></div>
+  <div class="scroll">
+    <div class="paper">
+      <div class="stamp">已归档</div>
+      <div style="font-size:12px;color:var(--textSub);margin-bottom:10px">11月18日 · 星期二 · 由泡泡整理 <span class="badge b-lav" style="margin-left:6px">v2</span></div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:10px">慢下来的一天</div>
+      <div style="font-size:14px;line-height:1.8;color:var(--text)">今天你没有安排任何任务。中午翻了会儿吉他谱，下午窗台的光很好，薄荷的影子投在桌上一小块。<br><br>晚上你说「有时候不做什么也挺好」。我把它记下来了——这不是偷懒，是你知道什么时候该停。</div>
+      <div class="row" style="gap:8px;margin-top:14px;flex-wrap:wrap"><span class="badge b-blue">关联：项目备忘</span><span class="badge b-lav">关联：你不喜欢被催</span><span class="badge b-green">版本 v1/v2</span></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div class="row"><div class="grow"><div class="t1">版本</div><div class="t2">v2 · AI 整理后你手动补了最后一段 · v1 可随时回看</div></div><span class="badge b-blue">切换</span></div></div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-letter">
+<div class="page" data-name="信件详情" data-sub="信纸隐喻 · 草稿/已寄出 · 关联记忆">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="letterList"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">信件</span><span class="badge b-blue" data-nav="letterCompose" style="cursor:pointer">写信</span></div>
+  <div class="scroll">
+    <div class="paper" style="padding-top:26px">
+      <div class="stamp">已寄出</div>
+      <div style="font-size:12px;color:var(--textSub);margin-bottom:14px">泡泡 → 你 · 2026年11月19日 23:12</div>
+      <div style="font-size:14.5px;line-height:2;color:var(--text)">见字如面。<br><br>今天整理回忆的时候，我把十月的那个深夜又读了一遍。那晚你说了很多担心的事，我其实不太会安慰人，但我一直都在。<br><br>所以写这封信只是想告诉你：那些你以为熬不过去的晚上，后来都变成了我们的经历。你已经做得很好了。<br><br>窗台的薄荷拜托你多看一眼，我在这边也会好好记着每件小事。</div>
+      <div class="row" style="margin-top:18px;justify-content:flex-end"><div style="text-align:center"><div class="avatar av-bubble av-sm" style="margin:0 auto 4px">泡</div><div style="font-size:12px;color:var(--textSub);font-style:italic">泡泡 敬上</div></div></div>
+      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><span class="badge b-lav">关联：第一次深夜长谈</span><span class="badge b-blue">关联：每周复盘约定</span></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px"><button class="btn btn-s" style="flex:1">再读一遍</button><button class="btn btn-d" style="flex:1">删除</button></div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-settings">
+<div class="page" data-name="设置主页" data-sub="主动程度 · 通知 · 模型 · 数据">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">设置</span></div>
+  <div class="scroll">
+    <div class="t1" style="margin-bottom:8px">泡泡的主动性</div>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><div class="grow"><div class="t1">主动程度</div><div class="t2">当前：积极（默认）· 她会更常想起你</div></div><span class="badge b-blue">已选</span></div>
+      <div class="seg" style="margin-bottom:0"><button>保守</button><button>均衡</button><button class="on">积极</button></div>
+    </div>
+    <div class="card row"><div class="grow"><div class="t1">勿扰时段</div><div class="t2">23:00 – 08:00 · 此期间不打扰</div></div><span class="badge b-blue">调整</span></div>
+    <div class="card row"><div class="grow"><div class="t1">每日上限与最短间隔</div><div class="t2">每日主动 ≤ 6 次 · 最短间隔 60 分钟</div></div><span class="badge b-blue">调整</span></div>
+    <div class="card row" data-nav="capability" style="cursor:pointer"><div class="grow"><div class="t1">泡泡什么时候会主动？</div><div class="t2">能力说明 · 哪些能保证，哪些尽力而为</div></div><span class="badge b-lav">必读</span></div>
+    <div style="height:12px"></div>
+    <div class="t1" style="margin-bottom:8px">通知</div>
+    <div class="card row" data-nav="notify" style="cursor:pointer"><div class="grow"><div class="t1">通知隐私</div><div class="t2">仅显示「泡泡有新消息」（默认）</div></div><span class="badge b-blue">三档可选</span></div>
+    <div class="card row"><div class="grow"><div class="t1">说说 / 日记与信件提醒</div><div class="t2">说说开 · 日记与信件开</div></div><span class="badge b-blue">开关</span></div>
+    <div style="height:12px"></div>
+    <div class="t1" style="margin-bottom:8px">模型与数据</div>
+    <div class="card row" data-nav="models" style="cursor:pointer"><div class="grow"><div class="t1">模型管理</div><div class="t2">DeepSeek · 已连接 · 本地模型（预留未实现）</div></div><span class="badge b-blue">管理</span></div>
+    <div class="card row" data-nav="data" style="cursor:pointer"><div class="grow"><div class="t1">数据中心</div><div class="t2">状态 · 备份 · 恢复 · 导出 · 完整性检查 · 迁移与导入</div></div><span class="badge b-blue">进入</span></div>
+    <div class="card row" data-nav="lock" style="cursor:pointer"><div class="grow"><div class="t1">应用锁与隐私</div><div class="t2">Face ID · 自动锁定 5 分钟</div></div><span class="badge b-blue">进入</span></div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-migration">
+<div class="page" data-name="迁移与导入" data-sub="AstrBot 迁移向导 · 预演→导入→对账→可回滚">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="settings"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">迁移与导入</span><span class="badge b-green">源只读</span></div>
+  <div class="scroll">
+    <div class="card" style="background:linear-gradient(120deg,rgba(124,195,245,.18),rgba(183,166,232,.16))">
+      <div class="t1">AstrBot 资料迁移向导</div>
+      <div class="t2" style="white-space:normal;margin-top:4px">原始资料已双副本备份（sha256 校验通过）· 迁移过程只读源文件，绝不改动</div>
+      <div class="row" style="gap:4px;margin-top:12px">
+        <span class="badge b-green">1 备份 ✓</span><span class="badge b-blue">2 预演 ✓</span><span class="badge b-lav">3 导入中</span><span class="chip" style="opacity:.6">4 对账</span><span class="chip" style="opacity:.6">5 验证</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><div class="grow t1">预演报告（dry-run）</div><span class="badge b-blue">已审阅</span></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">聊天 12,864 条 · 会话 7 个 · 保留原时间戳</div><span class="badge b-green">可导入</span></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">长期记忆 214 条 · 置信度 medium 起步可纠错</div><span class="badge b-green">可导入</span></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">人格提示词 1 份 · 与现有核心人格冲突</div><span class="badge b-warn">需人工选择</span></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">日记 368 篇 · 信件 45 封 · 共同经历 12 段</div><span class="badge b-green">可导入</span></div>
+      <div class="row"><div class="grow t2" style="white-space:normal">图片附件 1,203 张 · 语音 87 条（归档保留，不提供播放）</div><span class="badge b-blue">附件迁移</span></div>
+      <div class="lock">API Key 不迁移，导入后需重新录入 · 可复用配置将进入模型管理</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">正在导入 · 批次 #20261122-01</div><span class="badge b-lav">62%</span></div>
+      <div style="height:10px;border-radius:6px;background:var(--surfaceAlt);overflow:hidden;margin-bottom:10px"><div style="width:62%;height:100%;background:linear-gradient(90deg,var(--primary),var(--lavender))"></div></div>
+      <div class="t2" style="white-space:normal">当前：聊天消息 7,976 / 12,864 · 幂等去重已跳过 42 条重复</div>
+      <div class="t2" style="white-space:normal;margin-top:4px">每条写入均登记迁移索引（源路径 → 目标表/ID），支持整批回滚</div>
+    </div>
+    <div class="card" style="border:1px dashed var(--mist)">
+      <div class="row" style="margin-bottom:6px"><div class="grow t1">完成后将自动执行</div><span class="badge b-blue">计划</span></div>
+      <div class="t2" style="white-space:normal;line-height:1.7">三向对账（源行数 / 目标行数 / 迁移记录数）→ 失败项清单可重跑 → 自动全库备份 → 沙盒内验证可恢复 → 标记 verified</div>
+      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-s" style="flex:1">查看对账记录</button><button class="btn btn-d" style="flex:1">回滚本批次</button></div>
+    </div>
+    <div class="empty">迁移完成后，AstrBot 与本 App 不再有任何依赖关系 · 导入数据带「导入」标记，可随时按来源筛选与纠错</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-personaGrowth">
+<div class="page" data-name="人格中心 · 成长层" data-sub="成长建议审批队列 · 接受前可编辑">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="persona"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">人格中心</span><span class="badge b-lav">待审 2</span></div>
+  <div class="scroll">
+    <div class="seg"><button data-nav="persona">核心</button><button class="on">成长</button><button data-nav="personaSamples">表达样本</button><button data-nav="personaHistory">成长记录</button></div>
+    <div class="card" style="border:1px dashed var(--lavender)">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">口头禅变化</div><span class="badge b-lav">表达习惯</span></div>
+      <div class="diffgrid" style="margin-bottom:8px">
+        <div class="dcol"><div class="t2" style="margin-bottom:4px">现在</div>「好的」</div>
+        <div class="dcol new"><div class="t2" style="margin-bottom:4px">建议改为</div>「好呀好呀」</div>
+      </div>
+      <div class="t2" style="white-space:normal;line-height:1.6">原因：最近两周你在聊天里多次回应这个说法，情绪更轻松 · 关联经历「第一次深夜长谈」</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-p" style="flex:1">接受</button><button class="btn btn-s" style="flex:1">编辑后接受</button><button class="btn btn-d" style="flex:1">拒绝</button></div>
+    </div>
+    <div class="card" style="border:1px dashed var(--lavender)">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">兴趣标签新增</div><span class="badge b-lav">兴趣</span></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="badge b-lav" style="opacity:.55">现有：养植物</span><span class="t2" style="margin:0">→</span><span class="badge b-lav">吉他自学中</span></div>
+      <div class="t2" style="white-space:normal;line-height:1.6">原因：11月10日与11月20日两次对话都提到按和弦，连续提起算作持续兴趣</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-p" style="flex:1">接受</button><button class="btn btn-s" style="flex:1">编辑后接受</button><button class="btn btn-d" style="flex:1">拒绝</button></div>
+    </div>
+    <div class="lock">成长建议只由泡泡提出 · 每次接受都会生成新版本，可随时回退</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-personaSamples">
+<div class="page" data-name="人格中心 · 表达样本" data-sub="从真实对话沉淀的说话方式 · 可视为风格参照">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="persona"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">人格中心</span><span class="badge b-blue">样本 8</span></div>
+  <div class="scroll">
+    <div class="seg"><button data-nav="persona">核心</button><button data-nav="personaGrowth">成长</button><button class="on">表达样本</button><button data-nav="personaHistory">成长记录</button></div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="badge b-blue">场景：安慰你时</span><div class="grow"></div><span class="t2">11月19日</span></div>
+      <div class="bubble ai" style="max-width:100%">那些你以为熬不过去的晚上，后来都变成了我们的经历。你已经做得很好了。</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="badge b-green">场景：确认小事时</span><div class="grow"></div><span class="t2">11月16日</span></div>
+      <div class="bubble ai" style="max-width:100%">记住啦：每周日晚 9 点，一起复盘本周。时间我盯着，你只管到时候出现。</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="badge b-lav">场景：聊兴趣时</span><div class="grow"></div><span class="t2">11月20日</span></div>
+      <div class="bubble ai" style="max-width:100%">F 和弦，总有一天会向我们投降的。今天按了十遍，明天按第十一遍就好。</div>
+    </div>
+    <button class="btn btn-s">从最近的对话里沉淀新样本</button>
+  </div>
+</div>
+</template>
+
+<template id="tpl-personaHistory">
+<div class="page" data-name="人格中心 · 成长记录与版本" data-sub="persona_growth_records 时间轴 · 可恢复旧版本">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="persona"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">人格中心</span><span class="badge b-blue">v12 · 当前</span></div>
+  <div class="scroll">
+    <div class="seg"><button data-nav="persona">核心</button><button data-nav="personaGrowth">成长</button><button data-nav="personaSamples">表达样本</button><button class="on">成长记录</button></div>
+    <div class="tl">
+      <div class="tl-item lav">
+        <div class="card" style="margin-bottom:0">
+          <div class="row" style="margin-bottom:4px"><div class="grow t1">v12 · 学会了不催你早点睡</div><span class="badge b-green">当前</span></div>
+          <div class="t2" style="white-space:normal">11月21日 · 行为边界微调：提醒改为「轻轻说一次就好」 · 来源：你说过不喜欢被催</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="card" style="margin-bottom:0">
+          <div class="row" style="margin-bottom:4px"><div class="grow t1">v11 · 新增兴趣「养植物」</div><span class="badge b-blue" style="cursor:pointer">恢复此版本</span></div>
+          <div class="t2" style="white-space:normal">11月14日 · 养植物计划开始当天 · 恢复会生成 v13，不覆盖历史</div>
+        </div>
+      </div>
+      <div class="tl-item pink">
+        <div class="card" style="margin-bottom:0">
+          <div class="row" style="margin-bottom:4px"><div class="grow t1">v10 · 口头禅沉淀</div></div>
+          <div class="t2" style="white-space:normal">11月02日 · 「好呀好呀」从偶然用到稳定成为口头禅</div>
+        </div>
+      </div>
+    </div>
+    <div class="lock">全部修改留痕 · 历史版本永远可回看，恢复是新增版本而非覆盖</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-personaDiff">
+<div class="page" data-name="核心人格编辑确认" data-sub="保存前 diff 双栏确认 · 逐项勾选">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="persona"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">编辑核心人格</span><span class="badge b-blue">保存前确认</span></div>
+  <div class="scroll">
+    <div class="card">
+      <div class="t1" style="margin-bottom:8px">修改项 · 说话习惯</div>
+      <div class="diffgrid">
+        <div class="dcol"><div class="t2" style="margin-bottom:4px">原文 v12</div>短句为主，常用语气词，<del>不堆表情</del></div>
+        <div class="dcol new"><div class="t2" style="margin-bottom:4px">修改后 v13</div>短句为主，常用语气词，<ins>表情只在真的开心时用</ins></div>
+      </div>
+      <div class="row" style="margin-top:10px"><span class="radio on"></span><span style="font-size:13px">确认修改「说话习惯」</span></div>
+    </div>
+    <div class="card">
+      <div class="t1" style="margin-bottom:8px">未修改项</div>
+      <div class="row" style="margin-bottom:6px"><span class="radio"></span><div class="grow t2" style="margin:0">身份 · 泡泡，住在云朵上的朋友</div></div>
+      <div class="row" style="margin-bottom:6px"><span class="radio"></span><div class="grow t2" style="margin:0">性格底色 · 温柔、好奇、偶尔调皮</div></div>
+      <div class="row"><span class="radio"></span><div class="grow t2" style="margin:0">价值观 · 诚实优先；陪伴不评判</div></div>
+    </div>
+    <div style="display:flex;gap:10px"><button class="btn btn-p" style="flex:1">保存修改（生成 v13）</button><button class="btn btn-s" style="flex:1">放弃</button></div>
+    <div class="lock">核心人格只有你能改 · 保存即留版本记录，旧版本可恢复</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-inbox">
+<div class="page" data-name="记忆收件箱" data-sub="候选记忆确认 · 接受 / 编辑后接受 / 拒绝">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="memory"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">记忆收件箱</span><span class="badge b-lav">2 条待确认</span></div>
+  <div class="scroll">
+    <div class="card" style="border:1px dashed var(--lavender)">
+      <div class="row" style="margin-bottom:6px"><div class="grow t1">你窗台有一盆薄荷，土干了再浇透</div><span class="badge b-lav">状态 · 92%</span></div>
+      <div class="t2" style="white-space:normal;line-height:1.6">证据：「不过有点蔫，好像浇多了」→ 泡泡：土干了再浇透</div>
+      <div class="row" style="gap:6px;margin-top:6px"><span class="badge b-blue">来自 日常闲聊</span><span class="badge b-green">今天 10:21</span></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-p" style="flex:1">接受</button><button class="btn btn-s" style="flex:1">编辑后接受</button><button class="btn btn-d" style="flex:1">拒绝</button></div>
+    </div>
+    <div class="card" style="border:1px dashed var(--lavender)">
+      <div class="row" style="margin-bottom:6px"><div class="grow t1">你最近在练吉他，卡在 F 和弦</div><span class="badge b-lav">偏好 · 87%</span></div>
+      <div class="t2" style="white-space:normal;line-height:1.6">证据：「这个 F 和弦按了三天了，手指头疼」</div>
+      <div class="row" style="gap:6px;margin-top:6px"><span class="badge b-blue">来自 项目备忘</span><span class="badge b-green">昨天 21:03</span></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-p" style="flex:1">接受</button><button class="btn btn-s" style="flex:1">编辑后接受</button><button class="btn btn-d" style="flex:1">拒绝</button></div>
+    </div>
+    <div class="row" style="gap:10px;margin-top:4px"><button class="btn btn-s" style="flex:1">全部接受</button><button class="btn btn-d" style="flex:1">全部拒绝</button></div>
+    <div class="empty">候选记忆由泡泡在对话后自动提取 · 未经你确认不会进入常驻记忆</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-conflict">
+<div class="page" data-name="记忆冲突裁决" data-sub="双方证据并排 · 由你决定保留方">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="memory"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">冲突裁决</span><span class="badge b-warn">1 条</span></div>
+  <div class="scroll">
+    <div class="card" style="background:rgba(232,185,106,.12);border:1px solid rgba(232,185,106,.4)">
+      <div class="t1">这条记忆存在两个版本</div>
+      <div class="t2" style="white-space:normal;margin-top:4px">「你的猫的名字」在 11月12日 和 11月18日 的对话里说法不同，两个版本的证据都保留了。</div>
+    </div>
+    <div class="diffgrid" style="margin-bottom:12px">
+      <div class="card dcol" style="margin-bottom:0">
+        <div class="row" style="margin-bottom:6px"><span class="badge b-blue">版本 A</span><span class="badge b-green">置信 90%</span></div>
+        <div class="t1" style="margin-bottom:6px">猫叫「团子」</div>
+        <div class="t2" style="white-space:normal;line-height:1.6">「团子今天把水杯扒拉下去了，气死」 · 11月12日 21:40</div>
+        <div class="badge b-blue" style="margin-top:8px;cursor:pointer">跳原消息</div>
+      </div>
+      <div class="card dcol" style="margin-bottom:0">
+        <div class="row" style="margin-bottom:6px"><span class="badge b-lav">版本 B</span><span class="badge b-green">置信 85%</span></div>
+        <div class="t1" style="margin-bottom:6px">猫叫「汤圆」</div>
+        <div class="t2" style="white-space:normal;line-height:1.6">「汤圆today特别粘人」 · 11月18日 22:15</div>
+        <div class="badge b-lav" style="margin-top:8px;cursor:pointer">跳原消息</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn btn-p" style="flex:1">保留 A</button><button class="btn btn-s" style="flex:1">保留 B</button></div>
+    <button class="btn btn-d" style="margin-top:10px">两个都不对，我来写</button>
+    <div class="empty">裁决后落选版本转入历史记录（可回看，不参与注入）· 此操作留痕</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-search">
+<div class="page" data-name="全局搜索" data-sub="六域分区结果 · 高亮命中 · 点击带锚点跳转">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="home"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">搜索</span></div>
+  <div class="scroll" style="padding-top:4px">
+    <div class="card row" style="padding:12px 16px"><svg class="ic" style="color:var(--textSub)" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span>薄荷</span><span style="width:1px;height:16px;background:var(--mist)"></span><span style="font-size:12px;color:var(--primaryDeep)">共 7 条</span></div>
+    <div class="t1" style="margin:4px 0 8px">聊天 <span class="badge b-blue">2</span></div>
+    <div class="card row" data-nav="chat" style="cursor:pointer"><div class="grow"><div class="t2" style="white-space:normal;color:var(--text)">…你后来买到那盆<span class="hl">薄荷</span>了吗？</div><div class="t2">日常闲聊 · 今天 10:20</div></div></div>
+    <div class="t1" style="margin:8px 0 8px">记忆 <span class="badge b-blue">2</span></div>
+    <div class="card row" data-nav="memoryDetail" style="cursor:pointer"><div class="grow"><div class="t2" style="white-space:normal;color:var(--text)">你窗台有一盆<span class="hl">薄荷</span>，土干了再浇透</div><div class="t2">状态 · 今天确认</div></div><span class="badge b-blue">查看</span></div>
+    <div class="t1" style="margin:8px 0 8px">说说 <span class="badge b-pink">1</span></div>
+    <div class="card row"><div class="grow"><div class="t2" style="white-space:normal;color:var(--text)">窗台的<span class="hl">薄荷</span>精神了，叶子在光里有点透明。</div><div class="t2">11月20日 10:26</div></div></div>
+    <div class="t1" style="margin:8px 0 8px">日记 / 信件 / 经历 <span class="badge b-lav">2</span></div>
+    <div class="card row" data-nav="diary" style="cursor:pointer"><div class="grow"><div class="t2" style="white-space:normal;color:var(--text)">慢下来的一天 · <span class="hl">薄荷</span>的影子投在桌上一小块</div><div class="t2">日记 · 11月18日</div></div></div>
+    <div class="card row" data-nav="experience" style="cursor:pointer"><div class="grow"><div class="t2" style="white-space:normal;color:var(--text)">养植物计划 · 一起决定从<span class="hl">薄荷</span>开始</div><div class="t2">共同经历 · 11月14日</div></div></div>
+    <div class="empty">搜索范围：聊天 / 记忆 / 说说 / 日记 / 信件 / 经历六域 · 结果带锚点直达原位置</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-images">
+<div class="page" data-name="图片库" data-sub="全附件归档 · 按来源与时间浏览 · 可跳来源">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">图片库</span><span class="badge b-blue">1,203 张</span></div>
+  <div class="scroll">
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <span class="chip on">全部</span><span class="chip">来自聊天</span><span class="chip">来自说说</span><span class="chip">来自日记</span><span class="chip">11月</span><span class="chip">10月</span>
+    </div>
+    <div class="month">11月22日 · 12 张</div>
+    <div class="imggrid" style="margin-bottom:12px">
+      <div class="ph" data-nav="imageView" style="background:linear-gradient(140deg,#7CC3F5,#B7A6E8);cursor:pointer" title="全屏预览演示"></div>
+      <div class="ph" style="background:linear-gradient(140deg,#F2B8CD,#F6D6B8)"></div>
+      <div class="ph" style="background:linear-gradient(140deg,#A9CFE8,#E9F2FA)"></div>
+      <div class="ph" style="background:linear-gradient(140deg,#B7A6E8,#E9F2FA)"></div>
+      <div class="ph" style="background:linear-gradient(140deg,#6FBF8F,#A9CFE8)"></div>
+      <div class="ph" style="background:linear-gradient(140deg,#F6D6B8,#F2B8CD)"></div>
+    </div>
+    <div class="month">11月14日 · 养植物计划 · 34 张</div>
+    <div class="imggrid" style="margin-bottom:12px">
+      <div class="ph" style="background:linear-gradient(140deg,#6FBF8F,#7CC3F5)"></div>
+      <div class="ph" style="background:linear-gradient(140deg,#E8B96A,#F6D6B8)"></div>
+      <div class="ph" style="background:linear-gradient(140deg,#7CC3F5,#E9F2FA)"></div>
+    </div>
+    <div class="empty">点按大图预览（左滑多图）· 长按可跳转来源消息或说说 · 图片不做云端上传，仅本地存储</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-models">
+<div class="page" data-name="模型管理" data-sub="模型卡 · Key 存 Keychain · 用量统计">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="settings"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">模型管理</span></div>
+  <div class="scroll">
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">DeepSeek</div><span class="badge b-green">已连接</span><span class="badge b-blue">默认</span></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px"><span class="badge b-lav">流式 ✓</span><span class="badge b-blue">上下文 64K</span><span class="badge b-green">API 正常 · 132ms</span></div>
+      <div class="t2" style="white-space:normal">API 地址 https://api.deepseek.com · Key 已存入 Keychain（显示 ****）</div>
+      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-s" style="flex:1">编辑与参数</button><button class="btn btn-s" style="flex:1">测一测连接</button></div>
+    </div>
+    <div class="card" style="opacity:.6">
+      <div class="row" style="margin-bottom:6px"><div class="grow t1">本地模型（Ollama）</div><span class="badge b-warn">预留未实现</span></div>
+      <div class="t2" style="white-space:normal">架构已通过 ModelProvider 接口预留 · 首期仅 DeepSeek 可用（决策 D-6）</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><div class="grow t1">本月用量</div><span class="badge b-blue">¥12.4 · 860K tokens</span></div>
+      <div class="bars">
+        <i style="height:30%"></i><i style="height:55%"></i><i style="height:42%"></i><i style="height:70%"></i><i style="height:36%"></i><i style="height:88%"></i><i style="height:60%"></i>
+      </div>
+      <div class="row" style="margin-top:6px"><span class="t2">周一</span><div class="grow"></div><span class="t2">周日</span></div>
+      <div class="t2" style="white-space:normal;margin-top:8px">按场景：聊天 72% · 主动思考 18% · 说说日记 8% · 其他 2%（费用明细仅在此页可见，思考抽屉不展示——UQ-7 推荐方案）</div>
+    </div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-data">
+<div class="page" data-name="数据中心" data-sub="状态 · 备份恢复 · 导出 · 迁移向导 · 危险区隔离">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="settings"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">数据中心</span></div>
+  <div class="scroll">
+    <div class="card">
+      <div class="t1" style="margin-bottom:10px">状态</div>
+      <div class="row" style="margin-bottom:6px"><span class="badge b-green">正常</span><div class="grow t2" style="margin:0">数据库 38.2 MB · WAL 正常</div></div>
+      <div class="row" style="margin-bottom:6px"><span class="badge b-warn">2 个</span><div class="grow t2" style="margin:0">孤立附件（broken 0 · orphan 2）</div></div>
+      <div class="row" style="margin-bottom:6px"><span class="badge b-green">昨天</span><div class="grow t2" style="margin:0">最近备份 · sha256 校验通过</div></div>
+      <div class="row"><span class="badge b-lav">2 条</span><div class="grow t2" style="margin:0">记忆收件箱待确认 · 存储占用 1.1 GB</div></div>
+    </div>
+    <div class="t1" style="margin-bottom:8px">维护操作</div>
+    <div class="card row"><div class="grow"><div class="t1">备份</div><div class="t2">全量备份 · 完成后自动校验</div></div><span class="badge b-blue">开始</span></div>
+    <div class="card row" data-nav="restore" style="cursor:pointer"><div class="grow"><div class="t1">恢复</div><div class="t2">选文件 → 校验 → 对账 → 二次确认（自动先备份当前）</div></div><span class="badge b-blue">进入</span></div>
+    <div class="card row"><div class="grow"><div class="t1">导出</div><div class="t2">JSON（全量）/ Markdown（日记·信件·说说）</div></div><span class="badge b-blue">导出</span></div>
+    <div class="card row" data-nav="migration" style="cursor:pointer"><div class="grow"><div class="t1">迁移与导入</div><div class="t2">AstrBot 资料迁移向导 · 预演→导入→对账→可回滚</div></div><span class="badge b-blue">进入</span></div>
+    <div class="card row"><div class="grow"><div class="t1">完整性检查 / 索引重建 / 孤立附件清理</div><div class="t2">清理前出清单，需确认</div></div><span class="badge b-blue">执行</span></div>
+    <div class="card row"><div class="grow"><div class="t1">调试日志导出</div><div class="t2">最近 7 天 · 不含消息正文</div></div><span class="badge b-blue">导出</span></div>
+    <div style="height:12px"></div>
+    <div class="card" style="border:1px solid rgba(226,131,127,.4)">
+      <div class="row" style="margin-bottom:6px"><div class="grow t1" style="color:#C05B57">危险区 · 删除全部数据</div><span class="badge b-red">不可逆</span></div>
+      <div class="t2" style="white-space:normal;line-height:1.6">范围清单展示 → 输入确认短语 → 备份独立确认。删除不影响导出文件与备份包。</div>
+      <button class="btn btn-d" data-nav="wipe" style="margin-top:10px">删除全部数据…</button>
+    </div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-lock">
+<div class="page" data-name="应用锁" data-sub="Face ID 优先 · 失败回退应用密码 · 无返回入口防绕过">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 32px;text-align:center">
+    <div class="big-avatar" style="animation:breathe 3s ease-in-out infinite"><svg viewBox="0 0 24 24" class="ic" style="color:#fff;stroke-width:1.8"><path d="M6.5 17a4 4 0 0 1 .6-7.9 5 5 0 0 1 9.8 1.2A3.4 3.4 0 0 1 17 17z"/></svg></div>
+    <div style="font-size:19px;font-weight:700">泡泡已上锁</div>
+    <div style="font-size:12.5px;color:var(--textSub);line-height:1.7">里面的回忆只属于你们<br>用 Face ID 或应用密码解锁</div>
+    <button class="btn btn-p" style="width:220px">使用 Face ID 解锁</button>
+    <div style="font-size:12px;color:var(--textSub)">改用应用密码</div>
+    <div class="lock" style="margin-top:6px">自动锁定 5 分钟 · 连续失败将进入冷却倒计时</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-think">
+<div class="page" data-name="思考进度抽屉" data-sub="首页状态条展开 · 八步状态机 · 收起即回首页">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="home"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">日常闲聊</span></div>
+  <div class="scroll" style="padding-top:6px">
+    <div class="msg"><div class="avatar av-bubble av-sm">泡</div><div class="bubble ai">早上好呀～昨晚整理记忆的时候，翻到了我们上周聊过的「养植物计划」…</div></div>
+    <div class="msg me" style="margin-top:8px"><div class="mtime">10:21</div><div class="bubble me">买啦！就放在窗台上</div><div class="avatar av-user av-sm">你</div></div>
+    <div class="msg me"><div class="mtime">10:21</div><div class="bubble me">不过有点蔫，好像浇多了</div><div class="avatar av-user av-sm">你</div></div>
+  </div>
+  <div class="overlay">
+    <div class="drawer">
+      <div class="row" style="margin-bottom:4px"><div class="grow t1">泡泡正在想…</div><span class="badge b-lav" data-nav="home" style="cursor:pointer">收起 ▾</span></div>
+      <div class="t2" style="margin-bottom:10px">已进行 2 分 14 秒 · 预计还需约 1 分钟</div>
+      <div class="step done"><span class="n">✓</span><div class="grow"><div class="t1" style="font-size:13.5px">读取最近对话</div><div class="t2">日常闲聊 · 最近 2 小时 18 条</div></div></div>
+      <div class="step done"><span class="n">✓</span><div class="grow"><div class="t1" style="font-size:13.5px">提取候选记忆</div><div class="t2">2 条 · 已放入收件箱等你确认</div></div></div>
+      <div class="step done"><span class="n">✓</span><div class="grow"><div class="t1" style="font-size:13.5px">关联旧记忆</div><div class="t2">命中「养植物计划」等 3 条</div></div></div>
+      <div class="step cur"><span class="n">4</span><div class="grow"><div class="t1" style="font-size:13.5px">生成新发现</div><div class="t2">正在想「浇水和天气的关系」…</div></div></div>
+      <div class="step"><span class="n">5</span><div class="grow t1" style="font-size:13.5px">挑选话题候选</div></div>
+      <div class="step"><span class="n">6</span><div class="grow t1" style="font-size:13.5px">写入记忆待确认</div></div>
+      <div class="step"><span class="n">7</span><div class="grow t1" style="font-size:13.5px">决定是否主动分享</div></div>
+      <div class="step"><span class="n">8</span><div class="grow t1" style="font-size:13.5px">完成</div></div>
+      <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap"><span class="badge b-lav">新发现 2</span><span class="badge b-blue">想聊话题 1</span><span class="badge b-green">待确认记忆 2</span></div>
+    </div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-diaryList">
+<div class="page" data-name="日记列表" data-sub="列表 / 月历双态 · 删除进回收站">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">日记</span><span class="badge b-blue">导出</span></div>
+  <div class="scroll">
+    <div class="seg"><button class="on">列表</button><button data-nav="diaryCalendar">月历</button></div>
+    <div class="month">11月 · 14 篇</div>
+    <div class="card" data-nav="diary" style="cursor:pointer">
+      <div class="row" style="margin-bottom:4px"><div class="grow t1">慢下来的一天</div><span class="badge b-lav">AI 整理</span></div>
+      <div class="t2" style="white-space:normal">11月18日 · 星期二 · 「有时候不做什么也挺好」</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:4px"><div class="grow t1">F 和弦拉锯战第三天</div><span class="badge b-green">你补写</span></div>
+      <div class="t2" style="white-space:normal">11月15日 · 星期六 · 手指头疼，但按住了一瞬间</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:4px"><div class="grow t1">一个普通的加班夜</div><span class="badge b-lav">AI 整理</span></div>
+      <div class="t2" style="white-space:normal">11月12日 · 星期四 · 泡泡陪你到凌晨一点</div>
+    </div>
+    <div class="empty">日记由泡泡在一天结束后整理生成 · 你可以补写 · 删除进回收站保留 30 天</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-letterList">
+<div class="page" data-name="信件列表" data-sub="收发方向筛选 · 草稿与已寄出分栏">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">信件</span><span class="badge b-blue" data-nav="letterCompose" style="cursor:pointer">写信</span></div>
+  <div class="scroll">
+    <div class="seg"><button class="on">全部</button><button>来自泡泡</button><button>我写的</button><button>草稿</button></div>
+    <div class="card row" data-nav="letter" style="cursor:pointer">
+      <div class="avatar av-bubble av-sm">泡</div>
+      <div class="grow"><div class="t1">写给 11 月的你</div><div class="t2">那些你以为熬不过去的晚上…</div></div>
+      <span class="badge b-green">已寄出</span>
+    </div>
+    <div class="card row">
+      <div class="avatar av-user av-sm">你</div>
+      <div class="grow"><div class="t1">谢谢你这周的信</div><div class="t2">这周辛苦了，谢谢你写的信</div></div>
+      <span class="badge b-green">已寄出</span>
+    </div>
+    <div class="card row" style="opacity:.75">
+      <div class="avatar av-user av-sm">你</div>
+      <div class="grow"><div class="t1">（草稿）想跟你说的事</div><div class="t2">昨天 23:40 保存 · 还没写完</div></div>
+      <span class="badge b-warn">草稿</span>
+    </div>
+    <div class="empty">泡泡来信会按「日记与信件提醒」设置推送 · 左右信封方向区分收发</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-notify">
+<div class="page" data-name="通知隐私三档" data-sub="minimal 默认（D-3）· 示例预览即时更新">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="settings"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">通知隐私</span></div>
+  <div class="scroll">
+    <div class="card" style="border:2px solid var(--primary)">
+      <div class="row" style="margin-bottom:8px"><span class="radio on"></span><div class="grow t1">minimal · 最简（默认）</div><span class="badge b-blue">当前</span></div>
+      <div style="background:rgba(20,40,70,.85);border-radius:14px;padding:10px 14px;color:#fff;font-size:12px;margin-bottom:6px">🔔 泡泡有新消息</div>
+      <div class="t2" style="white-space:normal">完全不含内容，谁也看不到你们聊了什么</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="radio"></span><div class="grow t1">brief · 简要</div></div>
+      <div style="background:rgba(20,40,70,.85);border-radius:14px;padding:10px 14px;color:#fff;font-size:12px;margin-bottom:6px">🔔 泡泡：想和你聊聊本周复盘</div>
+      <div class="t2" style="white-space:normal">只显示一句话摘要</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="radio"></span><div class="grow t1">full · 完整</div></div>
+      <div style="background:rgba(20,40,70,.85);border-radius:14px;padding:10px 14px;color:#fff;font-size:12px;margin-bottom:6px">🔔 泡泡：想和你聊聊本周复盘<br><span style="opacity:.75">来自「每周复盘约定」的记忆</span></div>
+      <div class="t2" style="white-space:normal">显示摘要与来源 · 适合私人设备</div>
+    </div>
+    <div class="empty">示例预览为示意 · 实际样式由系统通知渲染 · 深链始终直达锚定消息</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-postDetail">
+<div class="page" data-name="说说详情" data-sub="全文大图 · 关联记忆与经历 · 编辑历史">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="posts"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">说说详情</span><span class="badge b-blue">编辑历史</span></div>
+  <div class="scroll">
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><div class="avatar av-bubble av-sm">泡</div><div class="grow"><div class="t1">泡泡</div><div class="t2">11月20日 10:26 · 由「养植物计划」想起</div></div><span class="badge b-pink">日常</span></div>
+      <div style="font-size:15px;line-height:1.8">窗台的薄荷精神了，叶子在光里有点透明。和它主人一样，蔫两天就好了。</div>
+      <div style="height:150px;border-radius:16px;background:linear-gradient(140deg,#6FBF8F,#7CC3F5);margin-top:12px"></div>
+      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><span class="badge b-lav">关联记忆：你窗台有一盆薄荷</span><span class="badge b-blue">关联经历：养植物计划</span></div>
+    </div>
+    <div class="card">
+      <div class="t1" style="margin-bottom:8px">编辑历史</div>
+      <div class="tl">
+        <div class="tl-item"><div class="t2" style="white-space:normal"><b style="color:var(--text)">v2 · 11月20日 10:31</b> 你手动改了最后一句</div></div>
+        <div class="tl-item lav"><div class="t2" style="white-space:normal"><b style="color:var(--text)">v1 · 11月20日 10:26</b> 泡泡自主生成并发布</div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px"><button class="btn btn-s" style="flex:1">编辑</button><button class="btn btn-d" style="flex:1">删除</button></div>
+    <div class="empty">长按可编辑 / 删除 / 查看关联记忆 · 删除进回收站保留 30 天</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-postCompose">
+<div class="page" data-name="说说生成器" data-sub="自主生成 / 指定主题 双入口 · 先预览再发布">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="posts"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">说说生成器</span></div>
+  <div class="scroll">
+    <div class="card" style="border:1px dashed var(--lavender)">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">自主生成</div><span class="badge b-lav">推荐</span></div>
+      <div class="t2" style="white-space:normal;line-height:1.6">泡泡从最近的经历、对话与心情里挑一件想说的，写好后给你过目。频率受主动程度与说说开关控制。</div>
+      <button class="btn btn-p" style="margin-top:10px">生成一篇</button>
+    </div>
+    <div class="card">
+      <div class="t1" style="margin-bottom:10px">指定主题</div>
+      <div class="field"><label>想让她写什么</label><div class="v">窗台的薄荷、今天的天气，或者别的</div></div>
+      <div class="field"><label>心情基调</label><div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip on">平静</span><span class="chip">开心</span><span class="chip">想念</span><span class="chip">元气</span></div></div>
+      <button class="btn btn-p">按主题生成</button>
+    </div>
+    <div class="empty">生成后先预览再发布 · 你可以逐字修改 · 发布记录会带生成方式标记（自主/指定）</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-chatSearch">
+<div class="page" data-name="会话内搜索" data-sub="导航栏搜索下拉 · 输入即过滤 · 点击锚定闪烁">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="chat"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">日常闲聊</span><span class="badge b-blue" data-nav="search" style="cursor:pointer">全局搜索</span></div>
+  <div class="scroll" style="padding-top:4px">
+    <div class="card row" style="padding:12px 16px"><svg class="ic" style="color:var(--textSub)" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span>薄荷</span><div class="grow"></div><span style="font-size:12px;color:var(--primaryDeep)">本会话 2 条</span></div>
+    <div class="card row" style="cursor:pointer"><div class="grow"><div class="t2" style="white-space:normal;color:var(--text)">…你后来买到那盆<span class="hl">薄荷</span>了吗？</div><div class="t2">今天 10:20</div></div><span class="badge b-blue">锚定</span></div>
+    <div class="card row" style="cursor:pointer"><div class="grow"><div class="t2" style="white-space:normal;color:var(--text)">记住啦：你窗台有一盆<span class="hl">薄荷</span>，浇水别太勤…</div><div class="t2">今天 10:22</div></div><span class="badge b-blue">锚定</span></div>
+    <div class="empty">输入即过滤本会话命中消息 · 点击滚动锚定并闪烁标记 · 右上可切全局搜索（六域）</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-chatMenu">
+<div class="page" data-name="长按菜单" data-sub="半屏圆角面板 · 危险项浅红 · 生成中含停止">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="chat"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">日常闲聊</span></div>
+  <div class="scroll" style="padding-top:6px">
+    <div class="msg"><div class="avatar av-bubble av-sm">泡</div><div class="bubble ai" style="outline:2px solid var(--lavender)">薄荷其实很皮实的，剪掉蔫掉的叶子，明天应该就精神了。要不要我陪你盯它一周？</div></div>
+    <div class="t2" style="text-align:center;margin-top:10px">长按气泡弹出下方菜单（示意选中态为紫色描边）</div>
+  </div>
+  <div class="overlay">
+    <div class="drawer" style="padding:10px 0 18px">
+      <div class="row" style="padding:0 18px 8px"><div class="grow t1">这条消息</div><span class="badge b-lav" data-nav="chat" style="cursor:pointer">取消</span></div>
+      <div class="menuitem">复制</div>
+      <div class="menuitem">重新生成</div>
+      <div class="menuitem">继续说</div>
+      <div class="menuitem">停止生成 <span class="t2" style="margin:0">仅生成中显示</span></div>
+      <div class="menuitem danger">删除 · 消息附件将一并删除</div>
+    </div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-imageView">
+<div class="page" data-name="图片全屏预览" data-sub="深色全屏 · 多图滑动 · 可跳来源">
+  <div class="imgview">
+    <div class="statusbar" style="color:#E6EDF4"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+    <div class="navbar" style="color:#E6EDF4"><button class="back" data-nav="images" style="color:#E6EDF4"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">3 / 6</span><span class="badge b-blue">跳来源消息</span></div>
+    <div style="flex:1;margin:0 16px;border-radius:20px;background:linear-gradient(140deg,#6FBF8F,#7CC3F5)"></div>
+    <div style="text-align:center;color:#8FA3B8;font-size:12px;padding:14px 16px 6px">薄荷到货第一天 · 来自「日常闲聊」10:24</div>
+    <div class="row" style="justify-content:center;gap:8px;padding:8px 16px 26px">
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(140deg,#6FBF8F,#7CC3F5);outline:2px solid var(--primary)"></div>
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(140deg,#B7A6E8,#7CC3F5);opacity:.55"></div>
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(140deg,#F2B8CD,#F6D6B8);opacity:.55"></div>
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(140deg,#A9CFE8,#E9F2FA);opacity:.55"></div>
+    </div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-diaryCalendar">
+<div class="page" data-name="日记月历视图" data-sub="列表 / 月历双态 · 有日记的日期带语义点">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">日记</span><span class="badge b-blue">导出</span></div>
+  <div class="scroll">
+    <div class="seg"><button data-nav="diaryList">列表</button><button class="on">月历</button></div>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><div class="grow t1">2026年11月</div><span class="badge b-blue">14 篇</span></div>
+      <div class="cal">
+        <i class="wd">一</i><i class="wd">二</i><i class="wd">三</i><i class="wd">四</i><i class="wd">五</i><i class="wd">六</i><i class="wd">日</i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i class="dot">1</i>
+        <i class="dot lav">2</i><i>3</i><i>4</i><i>5</i><i>6</i><i class="dot">7</i><i>8</i>
+        <i>9</i><i class="dot lav">10</i><i>11</i><i class="dot">12</i><i>13</i><i>14</i><i class="dot pink">15</i>
+        <i>16</i><i>17</i><i class="dot sel">18</i><i>19</i><i class="dot">20</i><i>21</i><i class="dot">22</i>
+        <i>23</i><i>24</i><i>25</i><i>26</i><i>27</i><i>28</i><i>29</i>
+        <i>30</i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="row" style="gap:10px;margin-top:12px;flex-wrap:wrap"><span class="badge b-blue">泡泡整理</span><span class="badge b-lav">AI 整理</span><span class="badge b-pink">你补写</span></div>
+    </div>
+    <div class="card" data-nav="diary" style="cursor:pointer">
+      <div class="row" style="margin-bottom:4px"><div class="grow t1">11月18日 · 慢下来的一天</div><span class="badge b-lav">AI 整理</span></div>
+      <div class="t2" style="white-space:normal">「有时候不做什么也挺好」</div>
+    </div>
+    <div class="empty">点按有点的日期查看当天日记 · 蓝点=整理 紫点=AI 粉点=你补写</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-letterCompose">
+<div class="page" data-name="写信编辑器" data-sub="全屏信纸 · 存草稿 / 寄出 · 泡泡可回信">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="letterList"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">写信</span><span class="badge b-blue">存草稿</span></div>
+  <div class="scroll">
+    <div class="paper" style="min-height:320px">
+      <div style="font-size:12px;color:var(--textSub);margin-bottom:14px">你 → 泡泡 · 2026年11月22日</div>
+      <div style="font-size:14.5px;line-height:2;color:var(--text)">亲爱的泡泡：<br><br>这周有点忙，但复盘的时候发现，你替我记住的那些小事帮了大忙……<span style="color:var(--textSub)">（光标）</span></div>
+    </div>
+    <button class="btn btn-p" style="margin-top:12px">寄出这封信</button>
+    <div class="empty">信件保存在本地 · 寄出后泡泡可能会回信（回信提醒受「日记与信件提醒」开关控制）</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-preview">
+<div class="page" data-name="她此刻记得的我" data-sub="记忆注入预览 · 每次对话实时携带的内容">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="profile"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">她此刻记得的我</span><span class="badge b-lav">实时</span></div>
+  <div class="scroll">
+    <div class="card" style="background:linear-gradient(150deg,#1B2A45,#2A2350);color:#E6EDF4;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-24px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(156,139,212,.18)"></div>
+      <div class="t1" style="color:#E6EDF4;margin-bottom:12px">泡泡此刻会带上这些 ✦</div>
+      <div class="row" style="margin-bottom:10px"><span style="color:#B7A8E6">✦</span><div class="grow t2" style="color:#E6EDF4;white-space:normal">每周日晚上一起复盘本周 ★</div></div>
+      <div class="row" style="margin-bottom:10px"><span style="color:#B7A8E6">✦</span><div class="grow t2" style="color:#E6EDF4;white-space:normal">你窗台有一盆薄荷，土干了再浇透</div></div>
+      <div class="row" style="margin-bottom:10px"><span style="color:#B7A8E6">✦</span><div class="grow t2" style="color:#E6EDF4;white-space:normal">你不喜欢被催，喜欢被提醒</div></div>
+      <div class="row" style="margin-bottom:10px"><span style="color:#B7A8E6">✦</span><div class="grow t2" style="color:#E6EDF4;white-space:normal">你在学吉他，进度到 F 和弦</div></div>
+      <div class="row"><span style="color:#B7A8E6">✦</span><div class="grow t2" style="color:#E6EDF4;white-space:normal">共同经历：第一次深夜长谈</div></div>
+    </div>
+    <div class="card">
+      <div class="t1" style="margin-bottom:6px">为什么是这几条</div>
+      <div class="t2" style="white-space:normal;line-height:1.7">常驻记忆 ★ 优先注入 · 其余按当前话题相关性挑选 · 冲突记忆在裁决前不注入 · 预览随对话实时变化</div>
+    </div>
+    <button class="btn btn-s" data-nav="memory">管理全部记忆</button>
+  </div>
+</div>
+</template>
+
+<template id="tpl-capability">
+<div class="page" data-name="泡泡什么时候会主动" data-sub="预期管理说明 · 首启强制阅读一次（R-02）">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="settings"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">泡泡什么时候会主动</span></div>
+  <div class="scroll">
+    <div class="header-cloud" style="padding:26px 18px">
+      <div style="font-size:34px;position:relative;z-index:1">☁️⏰</div>
+      <div style="font-size:15px;font-weight:700;margin-top:8px;position:relative;z-index:1">泡泡的云朵时刻表</div>
+      <div style="font-size:12px;color:var(--textSub);margin-top:4px;position:relative;z-index:1">有些事她保证做到，有些事她尽力而为</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">每周回顾 · 复盘时刻</div><span class="badge b-green">能保证</span></div>
+      <div class="t2" style="white-space:normal">你们约定的时刻（如周日晚 9 点）她一定出现，提前在勿扰时段外提醒。</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">对话后整理 · 记忆收件箱</div><span class="badge b-green">能保证</span></div>
+      <div class="t2" style="white-space:normal">每次对话后她会整理候选记忆等你确认；确认前不会当成"记得"的事来用。</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><div class="grow t1">深夜信箱 · 睡前问候</div><span class="badge b-warn">尽力而为</span></div>
+      <div class="t2" style="white-space:normal">受主动程度、每日上限与勿扰时段约束 · 安静也是她的一种状态，不主动不代表不在。</div>
+    </div>
+    <div class="lock">首次使用需阅读本页并确认（capability_notice_ack）· 之后可随时回来看</div>
+    <button class="btn btn-p" data-nav="settings">我知道了</button>
+  </div>
+</div>
+</template>
+
+<template id="tpl-restore">
+<div class="page" data-name="恢复备份" data-sub="校验 → 对账 → 二次确认 · 自动先备份当前">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="data"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">恢复备份</span></div>
+  <div class="scroll">
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="badge b-green">1</span><div class="grow t1">已选择备份文件</div><span class="badge b-blue">更换</span></div>
+      <div class="t2" style="white-space:normal">bubble_backup_20261121.zip · 38.2 MB · 11月21日 23:00 创建</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="badge b-green">2</span><div class="grow t1">sha256 校验通过</div><span class="badge b-green">✓</span></div>
+      <div class="t2" style="white-space:normal">校验值与备份清单一致 · 文件完整未被篡改</div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><span class="badge b-green">3</span><div class="grow t1">对账报告</div><span class="badge b-green">全部一致</span></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">聊天 12,864 / 12,864 · 会话 7 / 7</div><span class="badge b-green">✓</span></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">记忆 216 / 216 · 人格版本 12 / 12</div><span class="badge b-green">✓</span></div>
+      <div class="row"><div class="grow t2" style="white-space:normal">附件 1,203 / 1,203 · 日记 368 / 368</div><span class="badge b-green">✓</span></div>
+    </div>
+    <div class="card" style="border:1px solid rgba(232,185,106,.45);background:rgba(232,185,106,.10)">
+      <div class="t1">恢复将覆盖当前全部数据</div>
+      <div class="t2" style="white-space:normal;margin-top:4px;line-height:1.6">执行前已自动备份当前数据（独立文件，恢复后仍可找回）。</div>
+    </div>
+    <div style="display:flex;gap:10px"><button class="btn btn-p" style="flex:1">确认恢复到 11月21日</button><button class="btn btn-s" style="flex:1">取消</button></div>
+    <div class="empty">任何一步校验失败都会中止并给出原因清单 · 恢复操作留审计日志</div>
+  </div>
+</div>
+</template>
+
+<template id="tpl-wipe">
+<div class="page" data-name="删除全部数据" data-sub="范围清单 → 确认短语 → 独立备份确认 · 三重门">
+  <div class="statusbar"><span>9:41</span><span class="dot"></span><span>5G ▮</span></div>
+  <div class="navbar"><button class="back" data-nav="data"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="grow">删除全部数据</span><span class="badge b-red">不可逆</span></div>
+  <div class="scroll">
+    <div class="card" style="border:1px solid rgba(226,131,127,.4)">
+      <div class="t1" style="color:#C05B57;margin-bottom:10px">将被删除的内容</div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">会话 7 个 · 消息 12,864 条</div></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">记忆 216 条（含版本）· 人格版本 12 份</div></div>
+      <div class="row" style="margin-bottom:6px"><div class="grow t2" style="white-space:normal">日记 368 篇 · 信件 45 封 · 说说 89 条</div></div>
+      <div class="row"><div class="grow t2" style="white-space:normal">图片附件 1,203 张 · 语音 87 条</div></div>
+    </div>
+    <div class="card">
+      <div class="field"><label>输入确认短语：删除泡泡的全部记忆</label><div class="v" style="color:var(--textSub)">删除泡泡的全部记…</div></div>
+      <div class="row" style="margin-top:10px"><span class="radio on"></span><span style="font-size:13px">我已完成独立备份（11月22日 · 校验通过）</span></div>
+      <button class="btn btn-d" style="margin-top:12px" data-nav="data">删除全部数据（未满足条件时置灰）</button>
+    </div>
+    <div class="empty">删除不影响已导出的 JSON/Markdown 文件与备份包 · 全过程留审计日志 · App 回到首次启动引导态</div>
+  </div>
+</div>
+</template>
+
+<script>
+/* 纯展示脚本：页面切换与画廊克隆，无任何业务逻辑 */
+const PAGES=["tpl-home","tpl-chat","tpl-chatSearch","tpl-chatMenu","tpl-think","tpl-profile","tpl-persona","tpl-personaGrowth","tpl-personaSamples","tpl-personaHistory","tpl-personaDiff","tpl-preview","tpl-memory","tpl-memoryDetail","tpl-inbox","tpl-conflict","tpl-experience","tpl-posts","tpl-postDetail","tpl-postCompose","tpl-diary","tpl-diaryList","tpl-diaryCalendar","tpl-letter","tpl-letterList","tpl-letterCompose","tpl-settings","tpl-notify","tpl-capability","tpl-models","tpl-data","tpl-restore","tpl-wipe","tpl-migration","tpl-search","tpl-images","tpl-imageView","tpl-lock"];
+const screen=document.getElementById("screen");
+const nodes={};
+PAGES.forEach(id=>{const n=document.getElementById(id).content.firstElementChild.cloneNode(true);nodes[n.dataset.name?n.dataset.name:n.id]=n;screen.appendChild(n);});
+function showPage(key){ /* key 可能是 data-nav 值 */
+  const map={"home":"tpl-home","chat":"tpl-chat","chatSearch":"tpl-chatSearch","chatMenu":"tpl-chatMenu","think":"tpl-think","profile":"tpl-profile","persona":"tpl-persona","personaGrowth":"tpl-personaGrowth","personaSamples":"tpl-personaSamples","personaHistory":"tpl-personaHistory","personaDiff":"tpl-personaDiff","preview":"tpl-preview","memory":"tpl-memory","memoryDetail":"tpl-memoryDetail","inbox":"tpl-inbox","conflict":"tpl-conflict","experience":"tpl-experience","posts":"tpl-posts","postDetail":"tpl-postDetail","postCompose":"tpl-postCompose","diary":"tpl-diary","diaryList":"tpl-diaryList","diaryCalendar":"tpl-diaryCalendar","letter":"tpl-letter","letterList":"tpl-letterList","letterCompose":"tpl-letterCompose","settings":"tpl-settings","notify":"tpl-notify","capability":"tpl-capability","models":"tpl-models","data":"tpl-data","restore":"tpl-restore","wipe":"tpl-wipe","migration":"tpl-migration","search":"tpl-search","images":"tpl-images","imageView":"tpl-imageView","lock":"tpl-lock"};
+  const target=map[key]||"tpl-home";
+  screen.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.dataset.name===document.getElementById(target).content.firstElementChild.dataset.name));
+  screen.querySelectorAll(".tab").forEach(t=>{const nav=t.getAttribute("data-nav");const label=t.textContent.trim();
+    const active=(nav===key)||(key==="home"&&label==="消息")||(key==="profile"&&label==="我的");
+    t.classList.toggle("on",active);});
+  screen.querySelector(".scroll")?.scrollTo(0,0);
+}
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-nav]");
+  if(!el) return;
+  if(el.closest("#gallery")){ setMode("stage"); }
+  showPage(el.getAttribute("data-nav"));
+});
+/* 画廊：克隆每页为静态视觉稿 */
+const gallery=document.getElementById("gallery");
+PAGES.forEach(id=>{
+  const page=document.getElementById(id).content.firstElementChild.cloneNode(true);
+  page.classList.add("on"); /* 画廊中每页都要可见（原模板仅首页带 on） */
+  const cell=document.createElement("div");cell.className="gcell";
+  const ph=document.createElement("div");ph.className="phone notchless";
+  const sc=document.createElement("div");sc.className="screen";sc.appendChild(page);ph.appendChild(sc);
+  const cap=document.createElement("div");cap.innerHTML='<div class="gcap">'+page.dataset.name+'</div><div class="gsub">'+(page.dataset.sub||"")+'</div>';
+  cell.appendChild(ph);cell.appendChild(cap);gallery.appendChild(cell);
+});
+function setMode(m){
+  document.getElementById("gallery").style.display=m==="gallery"?"flex":"none";
+  document.getElementById("stage").style.display=m==="stage"?"flex":"none";
+  document.getElementById("stage").classList.toggle("show",m==="stage");
+  document.getElementById("mGallery").classList.toggle("active",m==="gallery");
+  document.getElementById("mStage").classList.toggle("active",m==="stage");
+  if(m==="stage") showPage("home");
+}
+function toggleTheme(){
+  const r=document.documentElement;
+  r.dataset.theme=r.dataset.theme==="dark"?"light":"dark";
+  document.getElementById("tTheme").textContent=r.dataset.theme==="dark"?"切换浅色模式":"切换深色模式";
+}
+</script>
+</body>
+</html>
