@@ -2,6 +2,7 @@
 // 阶段 1 为骨架：主结构 + 占位页；各正式页面随对应模块阶段落地。
 import 'package:go_router/go_router.dart';
 
+import '../pages/chat_page.dart';
 import '../pages/home_shell.dart';
 import '../pages/lock_screen.dart';
 import '../pages/placeholder_page.dart';
@@ -31,12 +32,11 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.home,
       builder: (context, state) => const HomeShell(),
     ),
-    // 会话详情（深链目标：通知点击 → /chat/<id>?message=<mid>）
+    // 会话详情（阶段 2 正式页面；通知深链阶段 13 接入 ?focus=<messageId>）
     GoRoute(
       path: AppRoutes.chat,
-      builder: (context, state) => PlaceholderPage(
-        title: '会话',
-        detail: state.pathParameters['conversationId'] ?? '',
+      builder: (context, state) => ChatPage(
+        conversationId: state.pathParameters['conversationId'] ?? '',
       ),
     ),
     ..._simpleRoutes(),

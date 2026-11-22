@@ -158,12 +158,12 @@ M8 交付          = 阶段 15
 - [x] T1.7 双版本打包（iOS 双 scheme + CI 按 flavor 注入 Bundle ID/显示名；Android 双 flavor；产物 Info.plist 自动校验）
 
 ### 阶段 2
-- [ ] T2.1 conversations/messages 仓储 + seq 分配 + 软删
-- [ ] T2.2 聊天页 UI（气泡/头像靠右靠左/时间条/状态/长按菜单）
-- [ ] T2.3 多会话列表 + 抽屉（切换/新建/重命名/删除范围确认）
-- [ ] T2.4 连续多气泡拆分落库 + 中断/停止/重试/继续状态机
-- [ ] T2.5 失败消息与未发送队列
-- [ ] T2.6 会话内搜索（bigram 过滤）
+- [x] T2.1 conversations/messages 仓储 + seq 分配 + 软删（2026-11-22，conversation_repository.dart）
+- [x] T2.2 聊天页 UI（气泡/头像靠右靠左/时间条/状态/长按菜单）（chat_page + message_bubble）
+- [x] T2.3 多会话列表 + 抽屉（切换/新建/重命名/删除范围确认）（conversation_list_page + conversation_drawer）
+- [x] T2.4 连续多气泡拆分落库 + 中断/停止/重试/继续状态机（bubble_splitter + message_status + chat_session_controller）
+- [x] T2.5 失败消息与未发送队列（failedMessages + 全部重试 + 悬挂恢复）
+- [x] T2.6 会话内搜索（bigram 过滤）（searchMessages + 搜索弹层定位高亮）
 
 ### 阶段 3
 - [ ] T3.1 ModelClient（dio+SSE 解析器，录制回放测试）
