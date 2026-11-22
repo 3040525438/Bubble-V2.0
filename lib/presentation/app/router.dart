@@ -3,6 +3,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../pages/chat_page.dart';
+import '../pages/context_preview_page.dart';
 import '../pages/core_persona_edit_page.dart';
 import '../pages/home_shell.dart';
 import '../pages/lock_screen.dart';
@@ -92,6 +93,13 @@ List<GoRoute> _simpleRoutes() => [
       GoRoute(
         path: AppRoutes.models,
         builder: (context, state) => const ModelManagePage(),
+      ),
+      // 上下文调试预览（阶段 6）
+      GoRoute(
+        path: '/context/preview',
+        builder: (context, state) => ContextPreviewPage(
+          conversationId: state.uri.queryParameters['conversationId'],
+        ),
       ),
       _route(AppRoutes.search, '全局搜索'),
       _route(AppRoutes.dataCenter, '数据管理'),

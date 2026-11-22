@@ -2,6 +2,7 @@
 import 'package:bubble/data/database/app_database.dart';
 import 'package:bubble/data/database/open_db.dart';
 import 'package:bubble/data/repositories/conversation_repository.dart';
+import 'package:bubble/domain/chat/chat_provider.dart';
 import 'package:bubble/domain/chat/message_status.dart';
 import 'package:bubble/presentation/chat/chat_session_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -193,5 +194,46 @@ void main() {
 
     expect((await repo.getMessage(hanging.id))!.status,
         MessageStatuses.interrupted);
+  });
+
+  test('上下文组装：system 消息位于历史之前并传给模型', () async {
+    final provider = FakeProvider();
+    final session = ChatSessionController(
+      repository: repo,
+      provider: provider,
+      conversationId: conv.id,
+      contextAssembler: (history) async => [
+        const ChatTurn(role: 'system', content: '【核心人格】你是泡泡'),
+        ...history,
+      ],
+    );
+    addTearDown(session.dispose);
+
+    await session.send('你好呀');
+    await wait();
+
+    expect(provider.lastHistory.first.role, 'system');
+    expect(provider.lastHistory.first.content, contains('你是泡泡'));
+    expect(provider.lastHistory.last.role, 'user');
+    expect(provider.lastHistory.last.content, '你好呀');
+  });
+
+  test('上下文组装失败时回退原始历史，聊天继续', () async {
+    final provider = FakeProvider();
+    final session = ChatSessionController(
+      repository: repo,
+      provider: provider,
+      conversationId: conv.id,
+      contextAssembler: (history) async => throw StateError('memory down'),
+    );
+    addTearDown(session.dispose);
+
+    await session.send('还在吗');
+    await wait();
+
+    expect(provider.lastHistory.first.role, 'user');
+    final messages = await repo.messages(conv.id);
+    expect(messages.where((m) => m.role == 'assistant').isNotEmpty, isTrue);
+    expect(session.lastError, isNull);
   });
 }

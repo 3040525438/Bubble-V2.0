@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/database/app_database.dart';
 import '../../data/database/db_provider.dart';
+import '../../data/context/chat_context_assembler.dart';
 import '../../data/repositories/conversation_repository.dart';
 import '../../data/repositories/model_repository.dart';
 import '../../domain/chat/chat_provider.dart';
@@ -30,6 +31,7 @@ class ChatPage extends StatefulWidget {
     this.repository,
     this.modelRepository,
     this.provider,
+    this.contextAssembler,
   });
 
   final String conversationId;
@@ -38,6 +40,9 @@ class ChatPage extends StatefulWidget {
   final ConversationRepository? repository;
   final ModelRepository? modelRepository;
   final ChatCompletionProvider? provider;
+
+  /// 上下文组装回调（测试注入）；为空时真实模型自动启用 ContextBuilder
+  final ContextAssemblerCallback? contextAssembler;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -92,11 +97,17 @@ class _ChatPageState extends State<ChatPage> {
     final conv = await _repo.getConversation(widget.conversationId);
     if (!mounted) return;
 
+    // 真实模型启用「人格 + 记忆」总装；开发回声不装配，避免误导为真实能力
+    final assembler = widget.contextAssembler ??
+        (provider.isMock
+            ? null
+            : ChatContextAssembler(AppDb.instance).assembleMessages);
     final session = ChatSessionController(
       repository: _repo,
       provider: provider,
       conversationId: widget.conversationId,
       modelRepository: provider.isMock ? null : _modelRepo,
+      contextAssembler: assembler,
     );
     session.addListener(_onSessionChanged);
     setState(() {

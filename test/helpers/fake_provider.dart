@@ -13,6 +13,7 @@ class FakeProvider extends ChatCompletionProvider {
   final List<String> segments;
   bool shouldFail;
   int calls = 0;
+  List<ChatTurn> lastHistory = const <ChatTurn>[];
 
   @override
   String get providerId => 'fake';
@@ -26,6 +27,7 @@ class FakeProvider extends ChatCompletionProvider {
   @override
   Stream<String> stream(List<ChatTurn> history) async* {
     calls++;
+    lastHistory = history;
     if (shouldFail) throw StateError('mock network down');
     for (var i = 0; i < segments.length; i++) {
       if (i > 0) yield '\n\n';

@@ -14,12 +14,17 @@ import '../../domain/chat/chat_error.dart';
 import '../../domain/chat/chat_provider.dart';
 import '../../domain/chat/message_status.dart';
 
+/// 上下文组装回调（阶段 6）：把原始会话历史装配为含 system 的消息列表。
+typedef ContextAssemblerCallback = Future<List<ChatTurn>> Function(
+    List<ChatTurn> history);
+
 class ChatSessionController extends ChangeNotifier {
   ChatSessionController({
     required this.repository,
     required this.provider,
     required this.conversationId,
     this.modelRepository,
+    this.contextAssembler,
     this.scene = 'chat',
   });
 
@@ -29,6 +34,9 @@ class ChatSessionController extends ChangeNotifier {
 
   /// 用量记账仓储（真实模型接入后提供；假模型为空）
   final ModelRepository? modelRepository;
+
+  /// 上下文组装（人格 + 记忆）；为空时直接使用原始历史
+  final ContextAssemblerCallback? contextAssembler;
 
   /// 用量场景（chat/thinking/proactive...）
   final String scene;
@@ -157,7 +165,19 @@ class ChatSessionController extends ChangeNotifier {
         status: MessageStatuses.streaming);
     final history = await repository.history(conversationId);
 
-    _sub = provider.stream(history).listen(
+    var payload = history;
+    final assembler = contextAssembler;
+    if (assembler != null) {
+      try {
+        payload = await assembler(history);
+      } catch (_) {
+        // 上下文失败不阻断聊天：回退原始历史（人格/记忆属增强项）
+        payload = history;
+      }
+    }
+    if (token != _generation || _disposed) return;
+
+    _sub = provider.stream(payload).listen(
       (chunk) {
         if (token != _generation || _disposed) return;
         _buffer.write(chunk);

@@ -1,5 +1,6 @@
 // 记忆注入预览（T5.4 / UI_PAGE_SPEC §D_星空卡）：常驻块与召回块实际渲染结果。
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/database/db_provider.dart';
 import '../../data/repositories/memory_repository.dart';
@@ -115,6 +116,12 @@ class _MemoryInjectPreviewPageState extends State<MemoryInjectPreviewPage> {
                       budget: MemoryContextRenderer.defaultRecallBudget),
                 const SizedBox(height: 12),
                 _whyCard(),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/context/preview'),
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: const Text('查看完整上下文（调试）'),
+                ),
               ],
             ),
     );
