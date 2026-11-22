@@ -1,22 +1,32 @@
-# Bubble V2.0 — iOS 未签名 IPA 构建
-# 说明：CI 产出的 IPA 为未签名包，由爱思助手在本机完成签名与安装。
-# 触发：push 到 main / 手动
-# Runner：macos-latest（公开仓库免费）
+# Bubble V2.0 — iOS 未签名 IPA 构建（双版本 flavor）
+# 版本：test = 测试版（com.dafeiyu.bubble.test，显示名 泡泡·测试）
+#       prod = 正式版（com.dafeiyu.bubble，显示名 泡泡）
+# push 触发默认构建 test；手动运行可选 prod。
+# 产物为未签名 IPA，由爱思助手在本机完成签名与安装。
 name: iOS 构建（未签名 IPA）
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      flavor:
+        description: "构建版本"
+        required: false
+        default: test
+        type: choice
+        options: [test, prod]
 
 permissions:
   contents: read
 
 jobs:
   build-ipa:
-    name: build ipa (no codesign)
+    name: build ipa (${{ inputs.flavor || 'test' }}, no codesign)
     runs-on: macos-latest
     timeout-minutes: 60
+    env:
+      FLAVOR: ${{ inputs.flavor || 'test' }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -36,16 +46,16 @@ jobs:
       - name: 拉取依赖
         run: flutter pub get
 
-      - name: 构建未签名 IPA
+      - name: 构建未签名 IPA（flavor: ${{ env.FLAVOR }}）
         run: |
-          flutter build ipa --release --no-codesign
+          flutter build ipa --release --no-codesign --flavor "$FLAVOR"
           # Flutter 3.50 在 --no-codesign 下只产出 xcarchive，跳过 IPA 打包；
           # 按标准 Payload 结构手动打包未签名 IPA（爱思助手可签名安装）。
           ls build/ios/archive/
           mkdir -p Payload build/ios/ipa
-          cp -R "build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app" Payload/
-          (cd Payload && zip -qry ../bubble-unsigned.ipa .)
-          mv bubble-unsigned.ipa build/ios/ipa/bubble-unsigned.ipa
+          cp -R build/ios/archive/*.xcarchive/Products/Applications/Runner.app Payload/
+          (cd Payload && zip -qry "../bubble-unsigned-$FLAVOR.ipa" .)
+          mv "bubble-unsigned-$FLAVOR.ipa" "build/ios/ipa/bubble-unsigned-$FLAVOR.ipa"
           rm -rf Payload
 
       - name: 收集产物信息（路径 / 大小 / SHA256）
@@ -56,14 +66,17 @@ jobs:
           ls -lh "$IPA_PATH"
           shasum -a 256 "$IPA_PATH" | tee artifacts/SHA256.txt
           cp "$IPA_PATH" artifacts/
-          # 同步归档工程关键信息，便于追溯构建环境
+          # 归档 Bundle ID 与显示名，验证版本标识正确
+          APP_PATH=$(ls build/ios/archive/*.xcarchive/Products/Applications/Runner.app | head -n 1)
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist" > artifacts/bundle-id.txt
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$APP_PATH/Info.plist" > artifacts/display-name.txt || true
           flutter --version > artifacts/flutter-version.txt
-          cat artifacts/SHA256.txt
+          cat artifacts/SHA256.txt artifacts/bundle-id.txt artifacts/display-name.txt
 
       - name: 上传 IPA 产物
         uses: actions/upload-artifact@v4
         with:
-          name: bubble-unsigned-ipa
+          name: bubble-unsigned-ipa-${{ env.FLAVOR }}
           path: artifacts/
           if-no-files-found: error
           retention-days: 30

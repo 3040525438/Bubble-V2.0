@@ -29,6 +29,21 @@ android {
         versionName = flutter.versionName
     }
 
+    // 双版本 flavor（与 iOS scheme 对应）：test=测试版 / prod=正式版
+    flavorDimensions += "versionType"
+    productFlavors {
+        create("test") {
+            dimension = "versionType"
+            applicationId = "com.dafeiyu.bubble.test"
+            resValue("string", "app_name", "泡泡·测试")
+        }
+        create("prod") {
+            dimension = "versionType"
+            applicationId = "com.dafeiyu.bubble"
+            resValue("string", "app_name", "泡泡")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
