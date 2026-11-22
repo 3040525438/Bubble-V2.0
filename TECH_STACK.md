@@ -23,8 +23,8 @@
 | flutter_riverpod | 3.5.0（2026-11-06） | 状态管理+依赖注入 | 事实标准；`Ref` 编译期安全；支持 Provider 生命周期与 autoDispose，适合会话级/任务级状态隔离 | Bloc / MobX | Riverpod 3.x 与 2.x 生态有 API 差异，锁定 3.x |
 | go_router | 18.1.4（2026-11-09） | 路由 | Flutter 官方 packages 仓库维护；声明式路由+深层跳转（通知点击跳转会话必需） | auto_route | 随 Flutter 官方仓库发布，风险低 |
 | drift | 2.35.4（2026-11-08） | SQLite ORM/响应式查询 | 类型安全 SQL、schema 迁移工具链（drift_dev+migrations）、Stream 查询天然适配 UI 响应；配合 sqlite3 3.x 支持 SQLCipher 加密 | sqflite（弱类型，迁移弱）、Isar（维护风险） | 代码生成需 build_runner，CI 时间增加 |
-| sqlite3 | 3.9.1（2026-11-08） | SQLite 绑定 | drift 底层；3.x 起官方接管 SQLCipher 加密支持 | — | 加密构建需真机验证 |
-| sqlcipher_flutter_libs | 0.7.0+eol（**已 EOL**） | — | **不采用**。官方提示改用 sqlite3 3.x | — | 明确避开此包 |
+| sqlite3 | 3.9.1（2026-11-08） | SQLite 绑定 | drift 底层；**3.x 起经 Dart hooks 机制自动捆绑预编译 SQLite（含 SQLCipher 变体）**，见下 | — | hooks 构建时需访问 GitHub releases 下载二进制（CI 无碍；本地走代理） |
+| sqlite3_flutter_libs | **0.6.0+eol（已 EOL 空壳）** | — | **不采用**。官方指示：升级 sqlite3 3.x 后移除；原生库供给已并入 sqlite3 3.x hooks 机制（2026-11-22 pub get 实测确认） | — | 明确避开此包 |
 | dio | 5.11.1（2026-09-04） | 网络请求 | 拦截器/取消/超时/重试齐备；`ResponseType.stream` 支持 SSE 流式解析 | http（无拦截器） | — |
 | freezed + json_serializable | 4.0.3 + 6.15.2 | 数据模型/序列化 | 不可变模型+copyWith+union 类型，适合消息/候选等状态机建模 | 手写模型（易错） | 代码生成成本 |
 | path_provider | 2.1.6（2026-06-15） | 文件目录 | Flutter 官方维护 | — | — |
@@ -45,7 +45,7 @@
 - 需求 FR-DB 要求字段级 schema、迁移、版本兼容、事务——drift 的 `schemaVersion + MigrationStrategy + drift_dev schema 导出/校验` 工具链是 Flutter 生态中最完整的 SQLite 迁移方案。
 - drift 的 `watch()` Stream 查询让聊天/记忆/说说列表天然响应式，无需手写失效通知。
 - drift 直接暴露 `sqlite3` 底层，可执行 `PRAGMA`、VACUUM、INTO 错误恢复，损坏隔离（FR-DB-02）可落地。
-- 加密：sqlite3.dart 3.x 已接管 SQLCipher 支持（sqlcipher_flutter_libs EOL 证实），drift 官方文档提供加密打开流程。
+- 加密：sqlite3 3.x 经 Dart hooks 启用 SQLCipher——`pubspec.yaml` 加 `hooks.user_defines.sqlite3.source: sqlcipher`（UPGRADING_TO_V3.md 官方路径，2026-11-22 实测）；降级候选 `source: sqlite3mc`。
 
 ### 3.2 中文检索方案（关系 15 项能力中的"中文检索"）
 
@@ -88,8 +88,7 @@ dependencies:
   flutter_riverpod: 3.5.0
   go_router: 18.1.4
   drift: 2.35.4
-  sqlite3: 3.9.1
-  sqlite3_flutter_libs: ^0.6.x   # iOS 原生 SQLite 供给（3.x 系加密另行验证）
+  sqlite3: 3.9.1                 # sqlite3_flutter_libs 已 EOL 移除；原生库经 hooks 供给
   dio: 5.11.1
   freezed_annotation: 3.1.0
   json_annotation: ^4.9.0
