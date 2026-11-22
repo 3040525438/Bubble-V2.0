@@ -46,39 +46,19 @@ jobs:
       - name: 拉取依赖
         run: flutter pub get
 
-      - name: 调试：直接运行 showBuildSettings（定位构建设置解析失败）
+      - name: 配置版本参数（Bundle ID 与显示名）
         run: |
-          SCHEME="$FLAVOR"
-          CONFIG="Release-$FLAVOR"
-          echo "scheme=$SCHEME configuration=$CONFIG"
-          # 对照组 1：Release-test（预期失败，捕获真实 stderr）
-          set +e
-          (cd ios/Runner.xcodeproj && xcodebuild \
-            -clonedSourcePackagesDirPath "$PWD/../../build/ios/SourcePackages" \
-            -skipPackagePluginValidation \
-            -skipPackageSignatureValidation \
-            -project "$PWD" \
-            -scheme test \
-            -configuration Release-test \
-            -destination 'generic/platform=iOS' \
-            -showBuildSettings \
-            BUILD_DIR="$PWD/../../build/ios") > debug_flavor.log 2>&1
-          echo "Release-test 退出码: $?"
-          tail -40 debug_flavor.log
-          # 对照组 2：Release（此前成功的配置，用于隔离变量）
-          (cd ios/Runner.xcodeproj && xcodebuild \
-            -clonedSourcePackagesDirPath "$PWD/../../build/ios/SourcePackages" \
-            -skipPackagePluginValidation \
-            -skipPackageSignatureValidation \
-            -project "$PWD" \
-            -scheme test \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -showBuildSettings \
-            BUILD_DIR="$PWD/../../build/ios") > debug_base.log 2>&1
-          echo "Release 退出码: $?"
-          tail -10 debug_base.log
-          head -3 debug_flavor.log
+          # 方案：Xcode 工程只保留 Debug/Release/Profile 三个基础配置，
+          # 测试版/正式版的差异通过 FLUTTER_XCODE_* 环境变量在构建时注入，
+          # 命令行级构建设置优先级最高，会覆盖工程内的兜底值。
+          if [ "$FLAVOR" = "prod" ]; then
+            echo "FLUTTER_XCODE_PRODUCT_BUNDLE_IDENTIFIER=com.dafeiyu.bubble" >> "$GITHUB_ENV"
+            echo "FLUTTER_XCODE_DISPLAY_NAME=泡泡" >> "$GITHUB_ENV"
+          else
+            echo "FLUTTER_XCODE_PRODUCT_BUNDLE_IDENTIFIER=com.dafeiyu.bubble.test" >> "$GITHUB_ENV"
+            echo "FLUTTER_XCODE_DISPLAY_NAME=泡泡·测试" >> "$GITHUB_ENV"
+          fi
+          echo "已写入环境变量，构建时注入 flavor=$FLAVOR"
 
       - name: 构建未签名 IPA（flavor 见 env.FLAVOR）
         run: |
@@ -111,6 +91,22 @@ jobs:
           fi
           flutter --version > artifacts/flutter-version.txt
           cat artifacts/SHA256.txt artifacts/bundle-id.txt
+
+      - name: 校验 Bundle ID 与显示名
+        run: |
+          if [ "$FLAVOR" = "prod" ]; then
+            EXPECT_ID="com.dafeiyu.bubble"
+            EXPECT_NAME="泡泡"
+          else
+            EXPECT_ID="com.dafeiyu.bubble.test"
+            EXPECT_NAME="泡泡·测试"
+          fi
+          echo "期望 Bundle ID: $EXPECT_ID，期望显示名: $EXPECT_NAME"
+          grep -q "<string>$EXPECT_ID</string>" artifacts/bundle-id.txt \
+            || { echo "::error::Bundle ID 校验失败，实际内容见上方 bundle-id.txt"; exit 1; }
+          grep -q "<string>$EXPECT_NAME</string>" artifacts/bundle-id.txt \
+            || { echo "::error::显示名校验失败，实际内容见上方 bundle-id.txt"; exit 1; }
+          echo "校验通过"
 
       - name: 上传 IPA 产物
         uses: actions/upload-artifact@v4
