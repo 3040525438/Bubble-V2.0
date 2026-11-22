@@ -5,16 +5,24 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/database/app_database.dart';
 import '../../data/database/db_provider.dart';
+import '../../data/repositories/feedback_repository.dart';
 import '../../data/repositories/post_repository.dart';
+import '../../domain/feedback/feedback_models.dart';
 import '../../domain/post/post_models.dart';
 import '../theme/bubble_colors.dart';
 import '../widgets/memory/memory_common.dart';
 
 class PostDetailPage extends StatefulWidget {
-  const PostDetailPage({super.key, required this.postId, this.repository});
+  const PostDetailPage({
+    super.key,
+    required this.postId,
+    this.repository,
+    this.feedbackRepository,
+  });
 
   final String postId;
   final PostRepository? repository;
+  final FeedbackRepository? feedbackRepository;
 
   @override
   State<PostDetailPage> createState() => _PostDetailPageState();
@@ -23,9 +31,12 @@ class PostDetailPage extends StatefulWidget {
 class _PostDetailPageState extends State<PostDetailPage> {
   late final PostRepository _repo =
       widget.repository ?? PostRepository(AppDb.instance);
+  late final FeedbackRepository _feedbackRepo =
+      widget.feedbackRepository ?? FeedbackRepository(AppDb.instance);
 
   Post? _post;
   List<JournalLog> _history = const <JournalLog>[];
+  FeedbackEntry? _latestFeedback;
   bool _loading = true;
 
   @override
@@ -37,12 +48,39 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _reload() async {
     final post = await _repo.getPost(widget.postId);
     final history = await _repo.editHistory(widget.postId);
+    final latest = await _feedbackRepo.latestFor(
+      FeedbackTargetKind.post,
+      widget.postId,
+    );
     if (!mounted) return;
     setState(() {
       _post = post;
       _history = history;
+      _latestFeedback = latest;
       _loading = false;
     });
+  }
+
+  /// 赞/踩切换：同一态度再次点击视为撤销（FR-FBK-01）。
+  Future<void> _toggleFeedback(FeedbackVerdict verdict) async {
+    final latest = _latestFeedback;
+    try {
+      if (latest != null && latest.verdict == verdict) {
+        await _feedbackRepo.revert(latest.id);
+      } else {
+        await _feedbackRepo.record(
+          kind: FeedbackTargetKind.post,
+          targetId: widget.postId,
+          verdict: verdict,
+        );
+      }
+      await _reload();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('反馈失败：$error')));
+    }
   }
 
   Future<void> _edit() async {
@@ -148,6 +186,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     color: onSurface.withValues(alpha: 0.88),
                   ),
                 ),
+                const SizedBox(height: 12),
+                _feedbackRow(context, onSurface),
                 if ((post.imageIds ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 14),
                   Container(
@@ -175,6 +215,62 @@ class _PostDetailPageState extends State<PostDetailPage> {
                 _historySection(context, onSurface),
               ],
             ),
+    );
+  }
+
+  Widget _feedbackRow(BuildContext context, Color onSurface) {
+    final semantic = context.bubbleColors;
+    final verdict = _latestFeedback?.verdict;
+
+    Widget button({
+      required FeedbackVerdict value,
+      required IconData icon,
+      required String label,
+    }) {
+      final active = verdict == value;
+      final color = value == FeedbackVerdict.like
+          ? semantic.successDeep
+          : semantic.dangerDeep;
+      return TextButton.icon(
+        key: Key('post-feedback-${value.wire}'),
+        onPressed: () => _toggleFeedback(value),
+        icon: Icon(
+          icon,
+          size: 17,
+          color: active ? color : onSurface.withValues(alpha: 0.45),
+        ),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: BubbleFontSize.badge,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            color: active ? color : onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Text(
+          '这条说说感觉如何？',
+          style: TextStyle(
+            fontSize: BubbleFontSize.badge,
+            color: onSurface.withValues(alpha: 0.45),
+          ),
+        ),
+        const Spacer(),
+        button(
+          value: FeedbackVerdict.like,
+          icon: Icons.thumb_up_alt_outlined,
+          label: '喜欢',
+        ),
+        button(
+          value: FeedbackVerdict.dislike,
+          icon: Icons.thumb_down_alt_outlined,
+          label: '不喜欢',
+        ),
+      ],
     );
   }
 

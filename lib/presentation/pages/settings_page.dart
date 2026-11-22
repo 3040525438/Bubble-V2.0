@@ -129,12 +129,21 @@ class _SettingsPageState extends State<SettingsPage> {
                   subtitle: '排查通知与后台任务（可导出文本）',
                   onTap: () => context.push('/settings/bg-logs'),
                 ),
-                _placeholderCard(
+                _entryCard(
                   context,
                   onSurface,
                   icon: Icons.folder_open_rounded,
                   title: '数据中心',
-                  subtitle: '备份、恢复与完整性检查（阶段 14 开放）',
+                  subtitle: '备份恢复、导出、迁移导入、完整性检查与删除全部数据',
+                  onTap: () => context.push('/data'),
+                ),
+                _entryCard(
+                  context,
+                  onSurface,
+                  icon: Icons.rate_review_outlined,
+                  title: '反馈历史',
+                  subtitle: '查看并撤销你给过泡泡的反馈',
+                  onTap: () => context.push('/data/feedback'),
                 ),
               ],
             ),
@@ -477,26 +486,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _placeholderCard(
-    BuildContext context,
-    Color onSurface, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Opacity(
-      opacity: 0.55,
-      child: _entryCard(
-        context,
-        onSurface,
-        icon: icon,
-        title: title,
-        subtitle: subtitle,
-        onTap: null,
       ),
     );
   }

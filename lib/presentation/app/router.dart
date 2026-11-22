@@ -3,12 +3,17 @@
 import 'package:go_router/go_router.dart';
 
 import '../pages/background_logs_page.dart';
+import '../pages/backup_restore_page.dart';
 import '../pages/chat_page.dart';
 import '../pages/context_preview_page.dart';
 import '../pages/core_persona_edit_page.dart';
+import '../pages/data_center_page.dart';
+import '../pages/delete_all_data_page.dart';
 import '../pages/diary_detail_page.dart';
 import '../pages/diary_page.dart';
 import '../pages/experience_detail_page.dart';
+import '../pages/feedback_history_page.dart';
+import '../pages/global_search_page.dart';
 import '../pages/home_shell.dart';
 import '../pages/image_gallery_page.dart';
 import '../pages/letter_compose_page.dart';
@@ -20,10 +25,10 @@ import '../pages/memory_conflict_page.dart';
 import '../pages/memory_detail_page.dart';
 import '../pages/memory_inbox_page.dart';
 import '../pages/memory_inject_preview_page.dart';
+import '../pages/migration_wizard_page.dart';
 import '../pages/model_manage_page.dart';
 import '../pages/notification_settings_page.dart';
 import '../pages/persona_center_page.dart';
-import '../pages/placeholder_page.dart';
 import '../pages/post_detail_page.dart';
 import '../pages/post_generator_page.dart';
 import '../pages/proactive_center_page.dart';
@@ -181,11 +186,32 @@ List<GoRoute> _simpleRoutes() => [
       conversationId: state.uri.queryParameters['conversationId'],
     ),
   ),
-  _route(AppRoutes.search, '全局搜索'),
-  _route(AppRoutes.dataCenter, '数据管理'),
+  // 全局搜索（阶段 14 正式页面）
+  GoRoute(
+    path: AppRoutes.search,
+    builder: (context, state) => const GlobalSearchPage(),
+  ),
+  // 数据中心（阶段 14）：备份恢复 / 删除全部数据 / 迁移向导 / 反馈历史
+  GoRoute(
+    path: AppRoutes.dataCenter,
+    builder: (context, state) => const DataCenterPage(),
+    routes: [
+      GoRoute(
+        path: 'backup',
+        builder: (context, state) => const BackupRestorePage(),
+      ),
+      GoRoute(
+        path: 'delete',
+        builder: (context, state) => const DeleteAllDataPage(),
+      ),
+      GoRoute(
+        path: 'migration',
+        builder: (context, state) => const MigrationWizardPage(),
+      ),
+      GoRoute(
+        path: 'feedback',
+        builder: (context, state) => const FeedbackHistoryPage(),
+      ),
+    ],
+  ),
 ];
-
-GoRoute _route(String path, String title) => GoRoute(
-  path: path,
-  builder: (context, state) => PlaceholderPage(title: title),
-);
