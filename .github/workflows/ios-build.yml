@@ -46,7 +46,7 @@ jobs:
       - name: 拉取依赖
         run: flutter pub get
 
-      - name: 构建未签名 IPA（flavor: ${{ env.FLAVOR }}）
+      - name: 构建未签名 IPA（flavor 见 env.FLAVOR）
         run: |
           flutter build ipa --release --no-codesign --flavor "$FLAVOR"
           # Flutter 3.50 在 --no-codesign 下只产出 xcarchive，跳过 IPA 打包；
