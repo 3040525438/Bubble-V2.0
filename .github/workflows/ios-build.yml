@@ -1,0 +1,60 @@
+# Bubble V2.0 — iOS 未签名 IPA 构建
+# 说明：CI 产出的 IPA 为未签名包，由爱思助手在本机完成签名与安装。
+# 触发：push 到 main / 手动
+# Runner：macos-latest（公开仓库免费）
+name: iOS 构建（未签名 IPA）
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ipa:
+    name: build ipa (no codesign)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter 3.50.1
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.50.1
+          channel: stable
+          cache: true
+
+      - name: 打印工具链版本
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: 拉取依赖
+        run: flutter pub get
+
+      - name: 构建未签名 IPA
+        run: flutter build ipa --release --no-codesign
+
+      - name: 收集产物信息（路径 / 大小 / SHA256）
+        run: |
+          mkdir -p artifacts
+          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n 1)
+          echo "IPA 路径: $IPA_PATH"
+          ls -lh "$IPA_PATH"
+          shasum -a 256 "$IPA_PATH" | tee artifacts/SHA256.txt
+          cp "$IPA_PATH" artifacts/
+          # 同步归档工程关键信息，便于追溯构建环境
+          flutter --version > artifacts/flutter-version.txt
+          cat artifacts/SHA256.txt
+
+      - name: 上传 IPA 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: bubble-unsigned-ipa
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30

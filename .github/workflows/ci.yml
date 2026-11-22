@@ -1,0 +1,49 @@
+# Bubble V2.0 — 持续集成：静态分析与单元测试
+# 触发：push 到 main / PR 到 main / 手动
+# Runner：ubuntu-latest（公开仓库免费，速度优于 macOS）
+name: CI（analyze + test）
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 默认只读权限即可（不写任何仓库资源）
+permissions:
+  contents: read
+
+jobs:
+  analyze-test:
+    name: analyze + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Java（Android 构建依赖兜底）
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 安装 Flutter 3.50.1
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.50.1
+          channel: stable
+          cache: true
+
+      - name: 打印工具链版本
+        run: flutter --version
+
+      - name: 拉取依赖
+        run: flutter pub get
+
+      - name: 静态分析
+        run: flutter analyze --fatal-infos
+
+      - name: 单元测试
+        run: flutter test
