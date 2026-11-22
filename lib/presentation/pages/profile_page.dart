@@ -82,7 +82,7 @@ class ProfilePage extends StatelessWidget {
           _EntryCard(
             icon: Icons.psychology_alt_rounded,
             title: '人格中心',
-            subtitle: '核心人格与成长记录（阶段 4 开放）',
+            subtitle: '核心人格、成长记录与表达样本',
             onTap: () => context.push('/persona'),
           ),
           _EntryCard(

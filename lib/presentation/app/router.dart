@@ -3,9 +3,11 @@
 import 'package:go_router/go_router.dart';
 
 import '../pages/chat_page.dart';
+import '../pages/core_persona_edit_page.dart';
 import '../pages/home_shell.dart';
 import '../pages/lock_screen.dart';
 import '../pages/model_manage_page.dart';
+import '../pages/persona_center_page.dart';
 import '../pages/placeholder_page.dart';
 
 class AppRoutes {
@@ -46,7 +48,15 @@ final GoRouter appRouter = GoRouter(
 
 List<GoRoute> _simpleRoutes() => [
       _route(AppRoutes.memory, '记忆中心'),
-      _route(AppRoutes.persona, '人格中心'),
+      // 人格中心（阶段 4 正式页面）+ 核心人格编辑
+      GoRoute(
+        path: AppRoutes.persona,
+        builder: (context, state) => const PersonaCenterPage(),
+      ),
+      GoRoute(
+        path: '/persona/edit',
+        builder: (context, state) => const CorePersonaEditPage(),
+      ),
       // 模型管理（阶段 3 正式页面）
       GoRoute(
         path: AppRoutes.models,

@@ -173,11 +173,11 @@ M8 交付          = 阶段 15
 - [ ] T3.5 真机流式聊天验收（需真实 API Key 与真机，待用户执行）
 
 ### 阶段 4
-- [ ] T4.1 persona 四表仓储 + 版本流转
-- [ ] T4.2 PersonaAssembler（四层+反模板约束+快照落库）
-- [ ] T4.3 核心人格编辑 diff 确认流 + 成长审批队列 UI
-- [ ] T4.4 表达样本收集与 pin
-- [ ] T4.5 人格域全量测试
+- [x] T4.1 persona 四表仓储 + 版本流转（persona_repository：全局版本号递增/激活唯一/核心门禁）
+- [x] T4.2 PersonaAssembler（四层+反模板约束+快照落库）（persona_assembler + core_system_prompt 快照）
+- [x] T4.3 核心人格编辑 diff 确认流 + 成长审批队列 UI（persona_center_page + core_persona_edit_page）
+- [x] T4.4 表达样本收集与 pin（列表/手动添加/从对话沉淀/置顶/软删）
+- [x] T4.5 人格域全量测试（仓储 13 + 组装器 5 + 页面 3，本地 116 测试全过）
 
 ### 阶段 5
 - [ ] T5.1 MemoryEngine 纯函数层（信号规则/机密扫描/敏感降级/比较决策）
