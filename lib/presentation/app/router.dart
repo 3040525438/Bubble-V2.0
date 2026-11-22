@@ -2,6 +2,7 @@
 // 阶段 1 为骨架：主结构 + 占位页；各正式页面随对应模块阶段落地。
 import 'package:go_router/go_router.dart';
 
+import '../pages/background_logs_page.dart';
 import '../pages/chat_page.dart';
 import '../pages/context_preview_page.dart';
 import '../pages/core_persona_edit_page.dart';
@@ -20,6 +21,7 @@ import '../pages/memory_detail_page.dart';
 import '../pages/memory_inbox_page.dart';
 import '../pages/memory_inject_preview_page.dart';
 import '../pages/model_manage_page.dart';
+import '../pages/notification_settings_page.dart';
 import '../pages/persona_center_page.dart';
 import '../pages/placeholder_page.dart';
 import '../pages/post_detail_page.dart';
@@ -55,11 +57,12 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.home,
       builder: (context, state) => const HomeShell(),
     ),
-    // 会话详情（阶段 2 正式页面；通知深链阶段 13 接入 ?focus=<messageId>）
+    // 会话详情（阶段 2 正式页面；阶段 13 支持通知深链 ?focus=<messageId>）
     GoRoute(
       path: AppRoutes.chat,
       builder: (context, state) => ChatPage(
         conversationId: state.pathParameters['conversationId'] ?? '',
+        focusMessageId: state.uri.queryParameters['focus'],
       ),
     ),
     ..._simpleRoutes(),
@@ -117,7 +120,16 @@ List<GoRoute> _simpleRoutes() => [
     path: AppRoutes.proactive,
     builder: (context, state) => const ProactiveCenterPage(),
   ),
-  // 设置主页（阶段 8：主动性分组；通知/数据分组随阶段 13/14 补齐）
+  // 通知设置与后台任务日志（阶段 13；静态子路径先于 /settings 声明）
+  GoRoute(
+    path: '/settings/notifications',
+    builder: (context, state) => const NotificationSettingsPage(),
+  ),
+  GoRoute(
+    path: '/settings/bg-logs',
+    builder: (context, state) => const BackgroundLogsPage(),
+  ),
+  // 设置主页（阶段 8：主动性分组；阶段 13：通知分组；数据分组随阶段 14 补齐）
   GoRoute(
     path: AppRoutes.settings,
     builder: (context, state) => const SettingsPage(),

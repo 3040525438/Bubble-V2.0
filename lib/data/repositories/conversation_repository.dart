@@ -249,6 +249,31 @@ ORDER BY (CASE WHEN c.sort_weight IS NULL THEN 1 ELSE 0 END),
     return (await getMessage(id))!;
   }
 
+  /// 追加一条主动消息（阶段 13：message_kind=proactive，通知与真实消息一致）。
+  Future<Message> appendProactiveMessage(
+    String conversationId,
+    String content,
+  ) async {
+    final id = await _insertMessage(
+      conversationId: conversationId,
+      role: 'assistant',
+      content: content,
+      status: MessageStatuses.sent,
+      messageKind: MessageKinds.proactive,
+    );
+    return (await getMessage(id))!;
+  }
+
+  /// 最近活跃的会话 id（无会话返回 null；主动消息优先发到最近会话）
+  Future<String?> mostRecentConversationId() async {
+    final row = await (_db.select(_db.conversations)
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.lastMessageAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.id;
+  }
+
   Future<String> _insertMessage({
     required String conversationId,
     required String role,

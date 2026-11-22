@@ -11,6 +11,7 @@ import '../../data/attachment/attachment_store.dart';
 import '../../data/database/app_database.dart';
 import '../../data/database/db_provider.dart';
 import '../../data/context/chat_context_assembler.dart';
+import '../../data/notification/notification_runtime.dart';
 import '../../data/repositories/attachment_repository.dart';
 import '../../data/repositories/conversation_repository.dart';
 import '../../data/repositories/model_repository.dart';
@@ -33,6 +34,7 @@ class ChatPage extends StatefulWidget {
   const ChatPage({
     super.key,
     required this.conversationId,
+    this.focusMessageId,
     this.repository,
     this.modelRepository,
     this.provider,
@@ -43,6 +45,9 @@ class ChatPage extends StatefulWidget {
   });
 
   final String conversationId;
+
+  /// 通知点击深链定位的消息 id（阶段 13）
+  final String? focusMessageId;
 
   /// 可选注入（测试用）；默认使用全局数据库
   final ConversationRepository? repository;
@@ -94,12 +99,14 @@ class _ChatPageState extends State<ChatPage> {
 
   String? _title;
   String? _highlightId;
+  String? _pendingFocusId;
   Timer? _highlightTimer;
   bool _stickToBottom = true;
 
   @override
   void initState() {
     super.initState();
+    _pendingFocusId = widget.focusMessageId;
     _scroll.addListener(_onScroll);
     _bootstrap();
     _bootstrapAttachments();
@@ -334,6 +341,8 @@ class _ChatPageState extends State<ChatPage> {
     );
     if (confirmed != true) return;
     await _repo.softDeleteMessage(message.id);
+    // 消息删除后联动取消其待投递通知（FR-IOS-06）
+    await NotificationRuntime.dispatcher?.cancelForMessage(message.id);
   }
 
   Future<void> _showMessageActions(
@@ -623,6 +632,15 @@ class _ChatPageState extends State<ChatPage> {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (!mounted || !_scroll.hasClients) return;
                               _scroll.jumpTo(_scroll.position.maxScrollExtent);
+                            });
+                          }
+                          // 通知深链：首帧后定位到目标消息并高亮
+                          final focusId = _pendingFocusId;
+                          if (focusId != null &&
+                              messages.any((m) => m.id == focusId)) {
+                            _pendingFocusId = null;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) _focusMessage(focusId);
                             });
                           }
                           return _buildMessageList(

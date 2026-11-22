@@ -88,8 +88,8 @@
 | UI 入口 | 实际功能 | 数据来源 | 验收要求 | 状态 |
 | --- | --- | --- | --- | --- |
 | 主动程度设置 | 三档真实影响决策 | proactive_candidates + ProactivePolicy | 行为实际变化 | 已完成（阶段 8：保守/均衡/积极三档，默认积极） |
-| 勿扰时段 | 时间轮设置 | app_settings | 冷却内不发送 | 已完成（阶段 8：跨午夜顺延不丢弃；真实通知投递属阶段 13） |
-| 主动消息 | 落库为真实消息+来源标注 | scheduled_messages→messages | 可取消可过期 | 部分完成（阶段 8：候选→决策→执行留痕与取消已通；真实消息生成/投递与通知属阶段 10/13） |
+| 勿扰时段 | 时间轮设置 | app_settings + notification_settings | 冷却内不发送 | 已完成（阶段 8：跨午夜顺延不丢弃；阶段 13：通知侧勿扰时段独立落库并对预排提醒顺延） |
+| 主动消息 | 落库为真实消息+来源标注 | scheduled_messages→messages | 可取消可过期 | 已完成（阶段 8/10/13：候选→决策→投递留痕与取消；阶段 13 主动联系落库为真实消息并预排通知；真实模型生成需配置 Key） |
 
 ## 模块 09：高度自主行为
 
@@ -125,9 +125,9 @@
 
 | UI 入口 | 实际功能 | 数据来源 | 验收要求 | 状态 |
 | --- | --- | --- | --- | --- |
-| 通知设置 | 隐私三档/开关 | notification_settings | 真实改变通知行为 | 未开始 |
-| 通知点击 | 深链锚定消息 | go_router 深链 | 真机验证 | 未开始 |
-| BGTask | 注册/调度/恢复/日志 | background_task_logs | 真机四场景 | 未开始 |
+| 通知设置 | 权限状态/隐私三档/类别开关/每日上限/勿扰时段/队列用量 | notification_settings + scheduled_messages | 真实改变通知行为 | 已完成（阶段 13：设置页 /settings/notifications；隐私三档完整显示/只提示有新消息/隐藏内容，实时预览；开关与上限、勿扰落库并影响调度） |
+| 通知点击 | 深链锚定消息（chat 带 focus 高亮 / post / diary / letter） | scheduled_messages.payload + go_router | 真机验证 | 部分完成（阶段 13：深链解析与焦点高亮已实现并测试；真机通知点击待验收） |
+| BGTask | 注册/调度/恢复/日志/导出 | background_task_logs | 真机四场景 | 部分完成（阶段 13：iOS BGTask Channel、Info.plist、日志页与文本导出已实现；真机四场景待用户验收） |
 
 ## 模块 14：反馈
 

@@ -102,13 +102,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 _sectionTitle(context, '泡泡的主动性'),
                 _proactivityCard(context, onSurface),
                 const SizedBox(height: 18),
-                _sectionTitle(context, '通知（阶段 13 开放）'),
-                _placeholderCard(
+                _sectionTitle(context, '通知'),
+                _entryCard(
                   context,
                   onSurface,
                   icon: Icons.notifications_none_rounded,
                   title: '通知隐私与提醒',
-                  subtitle: '本地通知预排、隐私三档与说说/日记提醒',
+                  subtitle: '隐私三档、说说/日记提醒与通知勿扰',
+                  onTap: () => context.push('/settings/notifications'),
                 ),
                 const SizedBox(height: 18),
                 _sectionTitle(context, '模型与数据'),
@@ -119,6 +120,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: '模型管理',
                   subtitle: '接入 DeepSeek、查看 Token 用量',
                   onTap: () => context.push('/models'),
+                ),
+                _entryCard(
+                  context,
+                  onSurface,
+                  icon: Icons.dns_outlined,
+                  title: '后台任务日志',
+                  subtitle: '排查通知与后台任务（可导出文本）',
+                  onTap: () => context.push('/settings/bg-logs'),
                 ),
                 _placeholderCard(
                   context,

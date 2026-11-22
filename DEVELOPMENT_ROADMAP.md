@@ -224,13 +224,13 @@ M8 交付          = 阶段 15
 - [x] T12.4 OCR 与图片文字搜索（接口/索引/搜索完成；真实识别引擎按 D-5 待接入，UI 明确标注未接入）
 
 ### 阶段 13
-- [ ] T13.1 Swift BGTask 桥接（按 IOS_BACKGROUND §2.2 骨架展开）+ Channel 协议
-- [ ] T13.2 Info.plist/entitlements 配置 + CI 侧验证
-- [ ] T13.3 scheduled_messages 全状态机 + 通知预排/取消/深链
-- [ ] T13.4 防重复/勿扰/上限/时区重排
-- [ ] T13.5 通知隐私三档
-- [ ] T13.6 调试日志导出通道
-- [ ] T13.7 真机四场景验收（TEST_PLAN §5 真机列）
+- [x] T13.1 Swift BGTask 桥接（按 IOS_BACKGROUND §2.2 骨架展开）+ Channel 协议（`bubble/background_task`、`bubble/system`）
+- [x] T13.2 Info.plist（UIBackgroundModes/BGTaskSchedulerPermittedIdentifiers）+ Android 通知权限 + CI 侧 plist 校验
+- [x] T13.3 scheduled_messages 全状态机 + 通知预排/取消/深链（chat/post/diary/letter + focus 高亮）
+- [x] T13.4 防重复/勿扰/上限/时区重排（同消息去重、跨午夜勿扰顺延、每日上限按本地日窗、时区变化重排）
+- [x] T13.5 通知隐私三档（完整显示/只提示有新消息/隐藏内容）
+- [x] T13.6 调试日志导出通道（设置 → 后台任务日志，导出文本到文档目录）
+- [ ] T13.7 真机四场景验收（TEST_PLAN §5 真机列）——**待用户真机执行**（强退/重启/系统终止/通知点击）
 
 ### 阶段 14
 - [ ] T14.1 全局搜索（六域+高亮+锚点）
