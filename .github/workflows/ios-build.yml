@@ -37,7 +37,16 @@ jobs:
         run: flutter pub get
 
       - name: 构建未签名 IPA
-        run: flutter build ipa --release --no-codesign
+        run: |
+          flutter build ipa --release --no-codesign
+          # Flutter 3.50 在 --no-codesign 下只产出 xcarchive，跳过 IPA 打包；
+          # 按标准 Payload 结构手动打包未签名 IPA（爱思助手可签名安装）。
+          ls build/ios/archive/
+          mkdir -p Payload build/ios/ipa
+          cp -R "build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app" Payload/
+          (cd Payload && zip -qry ../bubble-unsigned.ipa .)
+          mv bubble-unsigned.ipa build/ios/ipa/bubble-unsigned.ipa
+          rm -rf Payload
 
       - name: 收集产物信息（路径 / 大小 / SHA256）
         run: |
