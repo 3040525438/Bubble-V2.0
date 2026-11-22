@@ -20,6 +20,7 @@
 - ✅ SQLCipher 加密（hooks 编译验证）；真机打开加密库待真机安装确认
 - ✅ bigram 分词器 + 记忆索引重建协议（测试 34/34）
 - ✅ Material3 主题（深浅 token）/ GoRouter 全路由 / 应用锁骨架
+- ✅ 双版本打包（test 测试版 / prod 正式版）：iOS 双 scheme + CI 注入 Bundle ID/显示名，Android 双 flavor；产物自动校验
 - 各功能模块状态不变（全部未开始；骨架占位页不标记任何 UI 完成状态）
 
 ## 模块 01：基础架构

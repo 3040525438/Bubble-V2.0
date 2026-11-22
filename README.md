@@ -4,7 +4,9 @@
 
 - **技术路线**：Flutter（Windows 开发）+ DeepSeek API + 本地 SQLite（drift + SQLCipher）+ GitHub Actions macOS 出包 + 爱思助手真机安装
 - **数据原则**：本地优先，无自建服务器，无云端推送，全部数据存于设备本地加密数据库
-- **iOS Bundle ID**（实验版）：`com.dafeiyu.bubble.test`
+- **双版本**（同仓双 flavor，可并存安装）：
+  - 测试版：iOS `com.dafeiyu.bubble.test` / 显示名「泡泡·测试」
+  - 正式版：iOS `com.dafeiyu.bubble` / 显示名「泡泡」
 
 ## 当前状态
 
@@ -16,7 +18,22 @@
 | 仓库接入（本仓库） | ✅ 完成 |
 | 阶段 0：环境与 CI 链路 | 🔶 4/5 完成（CI ✅ / IPA ✅ / 产物归档 ✅；爱思助手安装与真机启动待用户配合） |
 | 阶段 1：基础架构、数据库、路由和主题 | ✅ 主体完成（32 表 schema v1 + SQLCipher + 分词索引 + 主题/路由/锁屏；CI 双流水线绿 @ 3321a90；真机验证项 3 项待真机安装） |
+| 双版本打包（测试版 / 正式版） | ✅ 完成（iOS 双 scheme + CI 注入 Bundle ID/显示名；Android 双 flavor；产物经 Info.plist 校验） |
 | 阶段 2~15 正式开发 | ⬜ 未开始 |
+
+## 双版本构建
+
+| 版本 | flavor | Bundle ID / applicationId | 显示名 | 触发方式 |
+| --- | --- | --- | --- | --- |
+| 测试版 | `test` | `com.dafeiyu.bubble.test` | 泡泡·测试 | push 到 main 自动构建（默认） |
+| 正式版 | `prod` | `com.dafeiyu.bubble` | 泡泡 | Actions 手动运行（workflow_dispatch，选 prod） |
+
+实现方式：Xcode 工程保留 Debug/Release/Profile 三个基础配置与 `test`/`prod` 两个 scheme；版本差异由 CI 通过 `FLUTTER_XCODE_PRODUCT_BUNDLE_IDENTIFIER`、`FLUTTER_XCODE_DISPLAY_NAME` 环境变量在构建时注入（命令行级构建设置优先级最高）。CI 出包后会从 IPA 内 `Info.plist` 提取并校验 Bundle ID 与显示名，不符则构建失败。
+
+| 产物 | 说明 |
+| --- | --- |
+| `bubble-unsigned-ipa-test` | 未签名测试版 IPA + SHA256 + bundle-id.txt |
+| `bubble-unsigned-ipa-prod` | 未签名正式版 IPA + SHA256 + bundle-id.txt |
 
 ## 文档导航
 

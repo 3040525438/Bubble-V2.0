@@ -155,6 +155,7 @@ M8 交付          = 阶段 15
 - [x] T1.4 bigram 分词器 + 索引表读写 + 重建协议（15+5 单测）
 - [x] T1.5 GoRouter 路由表 + Material3 主题（深浅 token 与 UI_DESIGN_SYSTEM 一致，9 例校验）
 - [x] T1.6 local_auth 应用锁骨架（锁屏/失败保护；Face ID 真机文案待真机验证）
+- [x] T1.7 双版本打包（iOS 双 scheme + CI 按 flavor 注入 Bundle ID/显示名；Android 双 flavor；产物 Info.plist 自动校验）
 
 ### 阶段 2
 - [ ] T2.1 conversations/messages 仓储 + seq 分配 + 软删
