@@ -149,12 +149,12 @@ M8 交付          = 阶段 15
 - [ ] T0.5 §7 的 D-1~D-8 决策项与用户确认
 
 ### 阶段 1
-- [ ] T1.1 drift schema v1（29+3 表）+ 快照导出与升级测试骨架
-- [ ] T1.2 加密验证 spike：sqlite3 3.x + SQLCipher 真机构建（失败→降级方案评审）
-- [ ] T1.3 PRAGMA 约定与 QueryExecutor 单连接封装
-- [ ] T1.4 bigram 分词器 + 索引表读写 + 重建协议
-- [ ] T1.5 GoRouter 路由表 + Material3 主题（深浅色）
-- [ ] T1.6 local_auth 应用锁骨架（锁屏页/失败保护）
+- [x] T1.1 drift schema v1（32 表）+ 快照导出与升级测试骨架（schema_v1 + make-migrations，2026-11-22）
+- [x] T1.2 加密验证 spike：sqlite3 3.x hooks + SQLCipher 编译成功（本地 Win + CI macOS 双验证）；真机打开加密库待真机安装后确认
+- [x] T1.3 PRAGMA 约定与 QueryExecutor 单连接封装（key→WAL→page_size）
+- [x] T1.4 bigram 分词器 + 索引表读写 + 重建协议（15+5 单测）
+- [x] T1.5 GoRouter 路由表 + Material3 主题（深浅 token 与 UI_DESIGN_SYSTEM 一致，9 例校验）
+- [x] T1.6 local_auth 应用锁骨架（锁屏/失败保护；Face ID 真机文案待真机验证）
 
 ### 阶段 2
 - [ ] T2.1 conversations/messages 仓储 + seq 分配 + 软删
