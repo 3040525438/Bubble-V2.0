@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../pages/chat_page.dart';
 import '../pages/context_preview_page.dart';
 import '../pages/core_persona_edit_page.dart';
+import '../pages/experience_detail_page.dart';
 import '../pages/home_shell.dart';
 import '../pages/lock_screen.dart';
 import '../pages/memory_center_page.dart';
@@ -113,6 +114,13 @@ List<GoRoute> _simpleRoutes() => [
       GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsPage(),
+      ),
+      // 共同经历详情（阶段 9 正式页面）
+      GoRoute(
+        path: '/experience/:experienceId',
+        builder: (context, state) => ExperienceDetailPage(
+          experienceId: state.pathParameters['experienceId'] ?? '',
+        ),
       ),
       // 上下文调试预览（阶段 6）
       GoRoute(

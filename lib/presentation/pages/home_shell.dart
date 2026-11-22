@@ -14,6 +14,7 @@ import '../theme/bubble_colors.dart';
 import 'conversation_list_page.dart';
 import 'placeholder_page.dart';
 import 'profile_page.dart';
+import 'timeline_page.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -34,9 +35,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   static const _tabs = <(IconData, String, String)>[
     (Icons.chat_bubble_outline_rounded, '消息', '消息'),
-    (Icons.timeline_rounded, '时间线', '时间线（阶段 9）'),
     (Icons.favorite_border_rounded, '说说', '说说（阶段 10）'),
-    (Icons.person_outline_rounded, '我的', '我的（阶段 4/14）'),
+    (Icons.timeline_rounded, '时间线', '共同经历'),
+    (Icons.person_outline_rounded, '我的', '我的'),
   ];
 
   @override
@@ -110,8 +111,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     return Scaffold(
       body: switch (_index) {
         0 => const ConversationListPage(),
-        3 => const ProfilePage(),
-        _ => PlaceholderPage(title: placeholder),
+        1 => PlaceholderPage(title: placeholder),
+        2 => const TimelinePage(),
+        _ => const ProfilePage(),
       },
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,

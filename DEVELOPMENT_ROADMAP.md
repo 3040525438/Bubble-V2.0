@@ -205,8 +205,8 @@ M8 交付          = 阶段 15
 - [x] T8.4 反馈闭环（feedback_records + 行为调整）
 
 ### 阶段 9
-- [ ] T9.1 shared_experiences 仓储 + 双视角 UI + review_log 只追加
-- [ ] T9.2 经历自动提名流
+- [x] T9.1 shared_experiences 仓储 + 双视角 UI + review_log 只追加
+- [x] T9.2 经历自动提名流
 
 ### 阶段 10
 - [ ] T10.1 posts 仓储 + 说说时间流 UI + 独立入口
