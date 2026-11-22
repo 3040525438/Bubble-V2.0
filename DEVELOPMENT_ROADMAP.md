@@ -193,10 +193,10 @@ M8 交付          = 阶段 15
 - [x] T6.2 上下文调试预览面板
 
 ### 阶段 7
-- [ ] T7.1 thinking_tasks 状态机 + checkpoint 协议
-- [ ] T7.2 八步 Orchestrator（含回顾抽样游标）
-- [ ] T7.3 前台定时触发 + app_resume 恢复扫描 + 「让泡泡想想」
-- [ ] T7.4 thinking_results 与记忆/候选联动
+- [x] T7.1 thinking_tasks 状态机 + checkpoint 协议
+- [x] T7.2 八步 Orchestrator（含回顾抽样游标）
+- [x] T7.3 前台定时触发 + app_resume 恢复扫描 + 「让泡泡想想」
+- [x] T7.4 thinking_results 与记忆/候选联动
 
 ### 阶段 8
 - [ ] T8.1 proactive_candidates/actions 仓储

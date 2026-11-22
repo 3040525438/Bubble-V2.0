@@ -92,6 +92,12 @@ class ProfilePage extends StatelessWidget {
             onTap: () => context.push('/memory'),
           ),
           _EntryCard(
+            icon: Icons.psychology_rounded,
+            title: '泡泡的思考',
+            subtitle: '让她回顾聊天、记忆与约定',
+            onTap: () => context.push('/thinking'),
+          ),
+          _EntryCard(
             icon: Icons.folder_open_rounded,
             title: '设置与数据',
             subtitle: '数据管理、备份与隐私（阶段 14 开放）',

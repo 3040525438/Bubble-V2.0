@@ -279,6 +279,7 @@ class MemoryRepository {
     String? sessionId,
     String? messageIds,
     String? assistantText,
+    String origin = 'rule',
   }) async {
     final secret = engine.scanSecrets(draft.rawText);
     final sensitive = engine.scanSensitivity(draft.rawText);
@@ -294,7 +295,7 @@ class MemoryRepository {
             proposedType: draft.type.wire,
             confidence: Value(draft.confidence.wire),
             importance: Value(draft.importance),
-            origin: const Value('rule'),
+            origin: Value(origin),
             groundingNote: Value(draft.evidence),
             scanFlags: Value(jsonEncode({
               'secret': secret.summary,
@@ -331,7 +332,7 @@ class MemoryRepository {
           proposedType: cleaned.type.wire,
           confidence: Value(cleaned.confidence.wire),
           importance: Value(cleaned.importance),
-          origin: const Value('rule'),
+          origin: Value(origin),
           groundingNote: Value(cleaned.evidence),
           scanFlags: Value(jsonEncode({
             'secret': secret.summary,

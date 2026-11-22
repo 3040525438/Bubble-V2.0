@@ -15,12 +15,14 @@ import '../pages/memory_inject_preview_page.dart';
 import '../pages/model_manage_page.dart';
 import '../pages/persona_center_page.dart';
 import '../pages/placeholder_page.dart';
+import '../pages/thinking_center_page.dart';
 
 class AppRoutes {
   static const lock = '/lock';
   static const home = '/';
   static const chat = '/chat/:conversationId';
   static const memory = '/memory';
+  static const thinking = '/thinking';
   static const persona = '/persona';
   static const models = '/models';
   static const search = '/search';
@@ -93,6 +95,11 @@ List<GoRoute> _simpleRoutes() => [
       GoRoute(
         path: AppRoutes.models,
         builder: (context, state) => const ModelManagePage(),
+      ),
+      // 思考中心（阶段 7 正式页面）
+      GoRoute(
+        path: AppRoutes.thinking,
+        builder: (context, state) => const ThinkingCenterPage(),
       ),
       // 上下文调试预览（阶段 6）
       GoRoute(
