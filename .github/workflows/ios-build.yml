@@ -66,29 +66,28 @@ jobs:
           # Flutter 3.50 在 --no-codesign 下只产出 xcarchive，跳过 IPA 打包；
           # 按标准 Payload 结构手动打包未签名 IPA（爱思助手可签名安装）。
           ls build/ios/archive/
+          rm -rf Payload
           mkdir -p Payload build/ios/ipa
           cp -R build/ios/archive/*.xcarchive/Products/Applications/Runner.app Payload/
-          (cd Payload && zip -qry "../bubble-unsigned-$FLAVOR.ipa" .)
-          mv "bubble-unsigned-$FLAVOR.ipa" "build/ios/ipa/bubble-unsigned-$FLAVOR.ipa"
+          # 打包 Payload 目录本身（保留 Payload/ 前缀，符合 IPA 规范）
+          zip -qry "build/ios/ipa/bubble-unsigned-$FLAVOR.ipa" Payload
           rm -rf Payload
 
       - name: 收集产物信息（路径 / 大小 / SHA256 / Bundle ID）
         run: |
           mkdir -p artifacts
-          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n 1)
+          IPA_PATH="build/ios/ipa/bubble-unsigned-$FLAVOR.ipa"
           echo "IPA 路径: $IPA_PATH"
           ls -lh "$IPA_PATH"
+          echo "--- IPA 内条目（前 20 行）---"
+          unzip -l "$IPA_PATH" | head -20
           shasum -a 256 "$IPA_PATH" | tee artifacts/SHA256.txt
           cp "$IPA_PATH" artifacts/
           # 从 IPA 内部提取 Info.plist 验证版本标识（测试版/正式版 Bundle ID 正确性）
-          unzip -p "$IPA_PATH" "Payload/Runner.app/Info.plist" > /tmp/plist.bin 2>/dev/null || true
-          if [ -s /tmp/plist.bin ]; then
-            plutil -convert xml1 /tmp/plist.bin -o /tmp/plist.xml 2>/dev/null || true
-            (grep -A1 -E "CFBundleIdentifier|CFBundleDisplayName" /tmp/plist.xml || true) | tee artifacts/bundle-id.txt
-          else
-            echo "IPA 内 Info.plist 提取失败，记录 archive 结构供排查" | tee artifacts/bundle-id.txt
-            find build/ios/archive -name "*.plist" | head -10 | tee -a artifacts/bundle-id.txt
-          fi
+          unzip -p "$IPA_PATH" "Payload/Runner.app/Info.plist" > /tmp/plist.bin
+          plutil -convert xml1 /tmp/plist.bin -o /tmp/plist.xml
+          grep -A1 -E "CFBundleIdentifier|CFBundleDisplayName" /tmp/plist.xml \
+            | tee artifacts/bundle-id.txt
           flutter --version > artifacts/flutter-version.txt
           cat artifacts/SHA256.txt artifacts/bundle-id.txt
 
@@ -101,11 +100,12 @@ jobs:
             EXPECT_ID="com.dafeiyu.bubble.test"
             EXPECT_NAME="泡泡·测试"
           fi
-          echo "期望 Bundle ID: $EXPECT_ID，期望显示名: $EXPECT_NAME"
-          grep -q "<string>$EXPECT_ID</string>" artifacts/bundle-id.txt \
-            || { echo "::error::Bundle ID 校验失败，实际内容见上方 bundle-id.txt"; exit 1; }
-          grep -q "<string>$EXPECT_NAME</string>" artifacts/bundle-id.txt \
-            || { echo "::error::显示名校验失败，实际内容见上方 bundle-id.txt"; exit 1; }
+          echo "EXPECT_ID=$EXPECT_ID"
+          echo "EXPECT_NAME=$EXPECT_NAME"
+          grep -qF "<string>$EXPECT_ID</string>" artifacts/bundle-id.txt \
+            || { echo "::error::Bundle ID 校验失败"; cat artifacts/bundle-id.txt; exit 1; }
+          grep -qF "<string>$EXPECT_NAME</string>" artifacts/bundle-id.txt \
+            || { echo "::error::显示名校验失败"; cat artifacts/bundle-id.txt; exit 1; }
           echo "校验通过"
 
       - name: 上传 IPA 产物
