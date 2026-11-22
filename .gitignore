@@ -66,8 +66,9 @@ token_store/
 *.sqlite
 *.sqlite3
 *.sqlite-wal
-data/
-databases/
+# 本地数据文件（仅根目录；test/data/ 为 drift 迁移测试，需入库）
+/data/
+/databases/
 Attachments/
 attachments/
 
