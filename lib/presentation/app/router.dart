@@ -5,8 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../pages/chat_page.dart';
 import '../pages/context_preview_page.dart';
 import '../pages/core_persona_edit_page.dart';
+import '../pages/diary_detail_page.dart';
+import '../pages/diary_page.dart';
 import '../pages/experience_detail_page.dart';
 import '../pages/home_shell.dart';
+import '../pages/letter_compose_page.dart';
+import '../pages/letter_detail_page.dart';
+import '../pages/letters_page.dart';
 import '../pages/lock_screen.dart';
 import '../pages/memory_center_page.dart';
 import '../pages/memory_conflict_page.dart';
@@ -61,92 +66,108 @@ final GoRouter appRouter = GoRouter(
 );
 
 List<GoRoute> _simpleRoutes() => [
-      // 记忆中心（阶段 5 正式页面）+ 详情/收件箱/冲突裁决/注入预览
+  // 记忆中心（阶段 5 正式页面）+ 详情/收件箱/冲突裁决/注入预览
+  GoRoute(
+    path: AppRoutes.memory,
+    builder: (context, state) => const MemoryCenterPage(),
+    routes: [
       GoRoute(
-        path: AppRoutes.memory,
-        builder: (context, state) => const MemoryCenterPage(),
-        routes: [
-          GoRoute(
-            path: 'detail/:memoryId',
-            builder: (context, state) => MemoryDetailPage(
-              memoryId: state.pathParameters['memoryId'] ?? '',
-            ),
-          ),
-          GoRoute(
-            path: 'inbox',
-            builder: (context, state) => const MemoryInboxPage(),
-          ),
-          GoRoute(
-            path: 'conflict/:memoryId',
-            builder: (context, state) => MemoryConflictPage(
-              memoryId: state.pathParameters['memoryId'] ?? '',
-            ),
-          ),
-          GoRoute(
-            path: 'inject',
-            builder: (context, state) => const MemoryInjectPreviewPage(),
-          ),
-        ],
-      ),
-      // 人格中心（阶段 4 正式页面）+ 核心人格编辑
-      GoRoute(
-        path: AppRoutes.persona,
-        builder: (context, state) => const PersonaCenterPage(),
+        path: 'detail/:memoryId',
+        builder: (context, state) =>
+            MemoryDetailPage(memoryId: state.pathParameters['memoryId'] ?? ''),
       ),
       GoRoute(
-        path: '/persona/edit',
-        builder: (context, state) => const CorePersonaEditPage(),
-      ),
-      // 模型管理（阶段 3 正式页面）
-      GoRoute(
-        path: AppRoutes.models,
-        builder: (context, state) => const ModelManagePage(),
-      ),
-      // 思考中心（阶段 7 正式页面）
-      GoRoute(
-        path: AppRoutes.thinking,
-        builder: (context, state) => const ThinkingCenterPage(),
-      ),
-      // 主动行为决策中心（阶段 8 正式页面）
-      GoRoute(
-        path: AppRoutes.proactive,
-        builder: (context, state) => const ProactiveCenterPage(),
-      ),
-      // 设置主页（阶段 8：主动性分组；通知/数据分组随阶段 13/14 补齐）
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (context, state) => const SettingsPage(),
-      ),
-      // 说说（阶段 10）：生成器与详情（静态路径须先于 :postId 声明）
-      GoRoute(
-        path: '/post/generate',
-        builder: (context, state) => const PostGeneratorPage(),
+        path: 'inbox',
+        builder: (context, state) => const MemoryInboxPage(),
       ),
       GoRoute(
-        path: '/post/:postId',
-        builder: (context, state) => PostDetailPage(
-          postId: state.pathParameters['postId'] ?? '',
+        path: 'conflict/:memoryId',
+        builder: (context, state) => MemoryConflictPage(
+          memoryId: state.pathParameters['memoryId'] ?? '',
         ),
       ),
-      // 共同经历详情（阶段 9 正式页面）
       GoRoute(
-        path: '/experience/:experienceId',
-        builder: (context, state) => ExperienceDetailPage(
-          experienceId: state.pathParameters['experienceId'] ?? '',
-        ),
+        path: 'inject',
+        builder: (context, state) => const MemoryInjectPreviewPage(),
       ),
-      // 上下文调试预览（阶段 6）
-      GoRoute(
-        path: '/context/preview',
-        builder: (context, state) => ContextPreviewPage(
-          conversationId: state.uri.queryParameters['conversationId'],
-        ),
-      ),
-      _route(AppRoutes.search, '全局搜索'),
-      _route(AppRoutes.dataCenter, '数据管理'),
-    ];
+    ],
+  ),
+  // 人格中心（阶段 4 正式页面）+ 核心人格编辑
+  GoRoute(
+    path: AppRoutes.persona,
+    builder: (context, state) => const PersonaCenterPage(),
+  ),
+  GoRoute(
+    path: '/persona/edit',
+    builder: (context, state) => const CorePersonaEditPage(),
+  ),
+  // 模型管理（阶段 3 正式页面）
+  GoRoute(
+    path: AppRoutes.models,
+    builder: (context, state) => const ModelManagePage(),
+  ),
+  // 思考中心（阶段 7 正式页面）
+  GoRoute(
+    path: AppRoutes.thinking,
+    builder: (context, state) => const ThinkingCenterPage(),
+  ),
+  // 主动行为决策中心（阶段 8 正式页面）
+  GoRoute(
+    path: AppRoutes.proactive,
+    builder: (context, state) => const ProactiveCenterPage(),
+  ),
+  // 设置主页（阶段 8：主动性分组；通知/数据分组随阶段 13/14 补齐）
+  GoRoute(
+    path: AppRoutes.settings,
+    builder: (context, state) => const SettingsPage(),
+  ),
+  // 说说（阶段 10）：生成器与详情（静态路径须先于 :postId 声明）
+  GoRoute(
+    path: '/post/generate',
+    builder: (context, state) => const PostGeneratorPage(),
+  ),
+  GoRoute(
+    path: '/post/:postId',
+    builder: (context, state) =>
+        PostDetailPage(postId: state.pathParameters['postId'] ?? ''),
+  ),
+  // 共同经历详情（阶段 9 正式页面）
+  GoRoute(
+    path: '/experience/:experienceId',
+    builder: (context, state) => ExperienceDetailPage(
+      experienceId: state.pathParameters['experienceId'] ?? '',
+    ),
+  ),
+  // 日记（阶段 11）：列表/月历 + 详情
+  GoRoute(path: '/diary', builder: (context, state) => const DiaryPage()),
+  GoRoute(
+    path: '/diary/:diaryId',
+    builder: (context, state) =>
+        DiaryDetailPage(diaryId: state.pathParameters['diaryId'] ?? ''),
+  ),
+  // 信件（阶段 11）：写信页须先于 :letterId 声明
+  GoRoute(path: '/letters', builder: (context, state) => const LettersPage()),
+  GoRoute(
+    path: '/letters/write',
+    builder: (context, state) => const LetterComposePage(),
+  ),
+  GoRoute(
+    path: '/letters/:letterId',
+    builder: (context, state) =>
+        LetterDetailPage(letterId: state.pathParameters['letterId'] ?? ''),
+  ),
+  // 上下文调试预览（阶段 6）
+  GoRoute(
+    path: '/context/preview',
+    builder: (context, state) => ContextPreviewPage(
+      conversationId: state.uri.queryParameters['conversationId'],
+    ),
+  ),
+  _route(AppRoutes.search, '全局搜索'),
+  _route(AppRoutes.dataCenter, '数据管理'),
+];
 
 GoRoute _route(String path, String title) => GoRoute(
-      path: path,
-      builder: (context, state) => PlaceholderPage(title: title),
-    );
+  path: path,
+  builder: (context, state) => PlaceholderPage(title: title),
+);

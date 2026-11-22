@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/database/db_provider.dart';
+import '../../data/diary/diary_generator.dart';
+import '../../data/letter/letter_generator.dart';
 import '../../data/post/post_generator.dart';
+import '../../data/proactive/content_deliverer.dart';
 import '../../data/proactive/proactive_decision_center.dart';
 import '../../data/thinking/thinking_factory.dart';
 import '../../data/thinking/thinking_orchestrator.dart';
@@ -69,10 +72,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     try {
       final setup = await createThinkingSetup(AppDb.instance);
       _thinking = setup.orchestrator;
-      // 决策中心唯一执行入口：post 类候选由生成器真实发布，其余记录
+      // 决策中心唯一执行入口：说说/日记/信件候选由生成器真实落地（FR-DEC-01）
       _proactive = ProactiveDecisionCenter(
         AppDb.instance,
-        deliverer: postAwareDeliverer(PostGenerator(AppDb.instance)),
+        deliverer: contentAwareDeliverer(
+          post: PostGenerator(AppDb.instance),
+          diary: DiaryGenerator(AppDb.instance),
+          letter: LetterGenerator(AppDb.instance),
+        ),
       );
       await _thinking!.recoverInterrupted();
     } catch (_) {

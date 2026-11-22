@@ -17,12 +17,14 @@ class ProfilePage extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 14, 18, 30),
         children: [
-          Text('我的',
-              style: TextStyle(
-                fontSize: BubbleFontSize.pageTitle,
-                fontWeight: FontWeight.w700,
-                color: onSurface,
-              )),
+          Text(
+            '我的',
+            style: TextStyle(
+              fontSize: BubbleFontSize.pageTitle,
+              fontWeight: FontWeight.w700,
+              color: onSurface,
+            ),
+          ),
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
@@ -46,26 +48,33 @@ class ProfilePage extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: Colors.white,
                   ),
-                  child: const Icon(Icons.cloud_rounded,
-                      size: 32, color: Colors.white),
+                  child: const Icon(
+                    Icons.cloud_rounded,
+                    size: 32,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('泡泡',
-                          style: TextStyle(
-                            fontSize: BubbleFontSize.profileName,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          )),
+                      Text(
+                        '泡泡',
+                        style: TextStyle(
+                          fontSize: BubbleFontSize.profileName,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('正在学着更懂你一点。',
-                          style: TextStyle(
-                            fontSize: BubbleFontSize.secondary,
-                            color: Colors.white.withValues(alpha: 0.85),
-                          )),
+                      Text(
+                        '正在学着更懂你一点。',
+                        style: TextStyle(
+                          fontSize: BubbleFontSize.secondary,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -102,6 +111,12 @@ class ProfilePage extends StatelessWidget {
             title: '主动性',
             subtitle: '主动程度、候选池与执行记录',
             onTap: () => context.push('/proactive'),
+          ),
+          _EntryCard(
+            icon: Icons.auto_stories_rounded,
+            title: '日记与信件',
+            subtitle: '月历里的日记，以及彼此写下的信',
+            onTap: () => context.push('/diary'),
           ),
           _EntryCard(
             icon: Icons.tune_rounded,
@@ -159,23 +174,30 @@ class _EntryCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title,
-                          style: TextStyle(
-                            fontSize: BubbleFontSize.cardTitle,
-                            fontWeight: FontWeight.w600,
-                            color: onSurface,
-                          )),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: BubbleFontSize.cardTitle,
+                          fontWeight: FontWeight.w600,
+                          color: onSurface,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(subtitle,
-                          style: TextStyle(
-                            fontSize: BubbleFontSize.badge,
-                            color: onSurface.withValues(alpha: 0.45),
-                          )),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: BubbleFontSize.badge,
+                          color: onSurface.withValues(alpha: 0.45),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded,
-                    size: 20, color: onSurface.withValues(alpha: 0.3)),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: onSurface.withValues(alpha: 0.3),
+                ),
               ],
             ),
           ),
