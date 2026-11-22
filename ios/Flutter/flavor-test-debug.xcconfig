@@ -1,0 +1,4 @@
+// 测试版 Debug 配置：Bundle ID com.dafeiyu.bubble.test（D-7 定案）
+#include "Debug.xcconfig"
+PRODUCT_BUNDLE_IDENTIFIER = com.dafeiyu.bubble.test
+DISPLAY_NAME = 泡泡·测试

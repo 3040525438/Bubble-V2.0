@@ -1,0 +1,4 @@
+// 正式版 Release 配置：Bundle ID com.dafeiyu.bubble
+#include "Release.xcconfig"
+PRODUCT_BUNDLE_IDENTIFIER = com.dafeiyu.bubble
+DISPLAY_NAME = 泡泡
