@@ -9,7 +9,8 @@
 
 > **完成度口径（严格区分，无实际证据不得标记完成）**：
 > - ✅ **已完成（有证据）**：技术与需求调研——本文档集 16 份（含 pub.dev 版本核对记录、dsh-longterm-memory 源码研读、AstrBot 源结构确认）。
-> - ⬜ **未完成（无证据，不得标完成）**：本地 Flutter 3.50 升级、CI 流水线搭建、**CI 构建通过**、**IPA 生成**、**爱思助手安装成功**、**iPhone 17 Pro 真机启动**——以上每一项都需在执行时留下可核查证据（workflow 运行记录、IPA 产物路径与 sha256、安装截图/日志、真机首启截图）方可勾选 T0.1~T0.3。
+> - ✅ **已完成（有证据，2026-11-22）**：本地 Flutter 3.50.1 升级（flutter doctor 通过）、CI 流水线搭建（ci.yml + ios-build.yml）、**CI 构建通过**（run 44996644352 / 44997104863）、**IPA 生成**（run 44997104863，未签名 IPA 产物已归档含 SHA256）。
+> - ⬜ **未完成（无证据，不得标完成）**：**爱思助手安装成功**、**iPhone 17 Pro 真机启动**——需用户配合执行并留档（安装截图/日志、真机首启截图）。
 
 - 前置：无
 - 任务：需求确认（本文档集）；Flutter 3.50 环境就位（Windows 升级本地 SDK）；GitHub Actions iOS 构建流水线打通（含实验版 Bundle ID 与签名文件管理）；AstrBot 资料归档与备份；dsh-longterm-memory 机制研究（已完成）
@@ -141,9 +142,9 @@ M8 交付          = 阶段 15
 ## 附录：任务拆分清单（可勾选，执行时逐项核对）
 
 ### 阶段 0
-- [ ] T0.1 本地 Flutter 升级 3.50 并跑通 `flutter doctor`
-- [ ] T0.2 GitHub Actions 仓库：analyze+test workflow / IPA 构建 workflow（secrets：证书、描述文件）
-- [ ] T0.3 空壳 App（实验版 Bundle ID）→ CI 出 IPA → 爱思助手真机安装成功
+- [x] T0.1 本地 Flutter 升级 3.50 并跑通 `flutter doctor`（实际 3.50.1 + Dart 3.14.0，doctor 2026-11-22 通过）
+- [x] T0.2 GitHub Actions 仓库：analyze+test workflow / IPA 构建 workflow（实际方案：未签名 IPA，CI 无需证书 Secrets；run 44997104863 双流水线成功）
+- [ ] T0.3 空壳 App（实验版 Bundle ID）→ CI 出 IPA ✅（com.dafeiyu.bubble.test 已归档）→ 爱思助手真机安装成功 ⬜（待用户配合，见阶段0报告.md §10）
 - [ ] T0.4 AstrBot 资料双副本备份 + sha256 清单
 - [ ] T0.5 §7 的 D-1~D-8 决策项与用户确认
 
