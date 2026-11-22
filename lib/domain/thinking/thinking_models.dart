@@ -66,12 +66,14 @@ enum ThinkingResultKind {
   bool get isQuiet => this == quiet;
 }
 
-/// 主动候选的行为类型（阶段 8 消费）
+/// 主动候选的行为类型（阶段 8 决策中心统一消费，与 proactive_candidates.action_kind 一致）
 enum ProactiveActionKind {
   chat('chat', '聊天'),
   post('post', '说说'),
   diary('diary', '日记'),
   letter('letter', '信件'),
+  reviewExperience('review_experience', '回顾经历'),
+  memoryHousekeeping('memory_housekeeping', '整理记忆'),
   quiet('quiet', '安静');
 
   const ProactiveActionKind(this.wire, this.label);

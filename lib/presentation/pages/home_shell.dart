@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/database/db_provider.dart';
+import '../../data/proactive/proactive_decision_center.dart';
 import '../../data/thinking/thinking_factory.dart';
 import '../../data/thinking/thinking_orchestrator.dart';
 import '../../domain/thinking/thinking_models.dart';
@@ -25,6 +26,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
   Timer? _thinkingTimer;
   ThinkingOrchestrator? _thinking;
+  ProactiveDecisionCenter? _proactive;
   bool _thinkingBusy = false;
 
   /// 前台定时触发间隔（主动程度设置接入后按档位调整，阶段 8）
@@ -65,6 +67,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     try {
       final setup = await createThinkingSetup(AppDb.instance);
       _thinking = setup.orchestrator;
+      _proactive = ProactiveDecisionCenter(AppDb.instance);
       await _thinking!.recoverInterrupted();
     } catch (_) {
       // 思考模块失败不影响主界面可用
@@ -92,6 +95,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     _thinkingBusy = true;
     try {
       await orchestrator.runNew(trigger: trigger);
+      // 思考产生候选后，统一由决策中心判断是否执行（唯一执行入口 FR-DEC-01）
+      await _proactive?.runOnce();
     } catch (_) {
       // 定时思考失败不打扰用户
     } finally {

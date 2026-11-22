@@ -199,10 +199,10 @@ M8 交付          = 阶段 15
 - [x] T7.4 thinking_results 与记忆/候选联动
 
 ### 阶段 8
-- [ ] T8.1 proactive_candidates/actions 仓储
-- [ ] T8.2 ProactivePolicy 过滤流水线（时钟注入可测）
-- [ ] T8.3 主动程度/通知设置 UI + 能力说明页
-- [ ] T8.4 反馈闭环（feedback_records + 行为调整）
+- [x] T8.1 proactive_candidates/actions 仓储
+- [x] T8.2 ProactivePolicy 过滤流水线（时钟注入可测）
+- [x] T8.3 主动程度/通知设置 UI + 能力说明页
+- [x] T8.4 反馈闭环（feedback_records + 行为调整）
 
 ### 阶段 9
 - [ ] T9.1 shared_experiences 仓储 + 双视角 UI + review_log 只追加

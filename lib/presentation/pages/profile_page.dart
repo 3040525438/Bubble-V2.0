@@ -98,9 +98,15 @@ class ProfilePage extends StatelessWidget {
             onTap: () => context.push('/thinking'),
           ),
           _EntryCard(
-            icon: Icons.folder_open_rounded,
-            title: '设置与数据',
-            subtitle: '数据管理、备份与隐私（阶段 14 开放）',
+            icon: Icons.bolt_rounded,
+            title: '主动性',
+            subtitle: '主动程度、候选池与执行记录',
+            onTap: () => context.push('/proactive'),
+          ),
+          _EntryCard(
+            icon: Icons.tune_rounded,
+            title: '设置',
+            subtitle: '主动性、通知与数据管理',
             onTap: () => context.push('/settings'),
           ),
           const SizedBox(height: 10),

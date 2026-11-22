@@ -15,6 +15,8 @@ import '../pages/memory_inject_preview_page.dart';
 import '../pages/model_manage_page.dart';
 import '../pages/persona_center_page.dart';
 import '../pages/placeholder_page.dart';
+import '../pages/proactive_center_page.dart';
+import '../pages/settings_page.dart';
 import '../pages/thinking_center_page.dart';
 
 class AppRoutes {
@@ -23,6 +25,7 @@ class AppRoutes {
   static const chat = '/chat/:conversationId';
   static const memory = '/memory';
   static const thinking = '/thinking';
+  static const proactive = '/proactive';
   static const persona = '/persona';
   static const models = '/models';
   static const search = '/search';
@@ -101,6 +104,16 @@ List<GoRoute> _simpleRoutes() => [
         path: AppRoutes.thinking,
         builder: (context, state) => const ThinkingCenterPage(),
       ),
+      // 主动行为决策中心（阶段 8 正式页面）
+      GoRoute(
+        path: AppRoutes.proactive,
+        builder: (context, state) => const ProactiveCenterPage(),
+      ),
+      // 设置主页（阶段 8：主动性分组；通知/数据分组随阶段 13/14 补齐）
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (context, state) => const SettingsPage(),
+      ),
       // 上下文调试预览（阶段 6）
       GoRoute(
         path: '/context/preview',
@@ -110,7 +123,6 @@ List<GoRoute> _simpleRoutes() => [
       ),
       _route(AppRoutes.search, '全局搜索'),
       _route(AppRoutes.dataCenter, '数据管理'),
-      _route(AppRoutes.settings, '设置'),
     ];
 
 GoRoute _route(String path, String title) => GoRoute(
