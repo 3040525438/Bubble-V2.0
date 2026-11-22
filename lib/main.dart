@@ -1,6 +1,9 @@
-// 泡泡 Bubble V2.0 — 应用入口（阶段 1 骨架版）
-// 完整主题/路由/锁屏在阶段 1-7/1-8 接入，此版本仅验证工程链路。
+// 泡泡 Bubble V2.0 — 应用入口（阶段 1 骨架）
+// 主题（浅/深/跟随系统）+ GoRouter 接入；锁屏在 SecurityController 就绪后前置。
 import 'package:flutter/material.dart';
+
+import 'presentation/app/router.dart';
+import 'presentation/theme/bubble_theme.dart';
 
 void main() {
   runApp(const BubbleApp());
@@ -11,12 +14,13 @@ class BubbleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    // 阶段 1：跟随系统深浅色（设置中心「跟随系统」为默认，阶段 20 接切换 UI）
+    return MaterialApp.router(
       title: '泡泡',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF58AEF0), useMaterial3: true),
-      home: const Scaffold(
-        body: Center(child: Text('泡泡 Bubble V2.0 · 阶段 1 骨架')),
-      ),
+      routerConfig: appRouter,
+      theme: BubbleTheme.light(),
+      darkTheme: BubbleTheme.dark(),
+      themeMode: ThemeMode.system,
     );
   }
 }
