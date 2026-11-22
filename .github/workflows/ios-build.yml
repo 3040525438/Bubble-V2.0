@@ -48,24 +48,37 @@ jobs:
 
       - name: 调试：直接运行 showBuildSettings（定位构建设置解析失败）
         run: |
-          SCHEME="$(tr '[:lower:]' '[:upper:]' <<< "${FLAVOR:0:1}")${FLAVOR:1}"
-          CONFIG="Release-$SCHEME"
+          SCHEME="$FLAVOR"
+          CONFIG="Release-$FLAVOR"
           echo "scheme=$SCHEME configuration=$CONFIG"
-          xcodebuild -list -project ios/Runner.xcodeproj
+          # 对照组 1：Release-test（预期失败，捕获真实 stderr）
           set +e
-          # 完整复刻 flutter_tools getBuildSettings 的调用参数
-          xcodebuild \
-            -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages" \
+          (cd ios/Runner.xcodeproj && xcodebuild \
+            -clonedSourcePackagesDirPath "$PWD/../../build/ios/SourcePackages" \
             -skipPackagePluginValidation \
             -skipPackageSignatureValidation \
-            -project "$PWD/ios/Runner.xcodeproj" \
-            -scheme "$SCHEME" \
-            -configuration "$CONFIG" \
+            -project "$PWD" \
+            -scheme test \
+            -configuration Release-test \
             -destination 'generic/platform=iOS' \
             -showBuildSettings \
-            BUILD_DIR="$PWD/build/ios" > showBuildSettings.log 2>&1
-          echo "showBuildSettings 退出码: $?"
-          tail -60 showBuildSettings.log
+            BUILD_DIR="$PWD/../../build/ios") > debug_flavor.log 2>&1
+          echo "Release-test 退出码: $?"
+          tail -40 debug_flavor.log
+          # 对照组 2：Release（此前成功的配置，用于隔离变量）
+          (cd ios/Runner.xcodeproj && xcodebuild \
+            -clonedSourcePackagesDirPath "$PWD/../../build/ios/SourcePackages" \
+            -skipPackagePluginValidation \
+            -skipPackageSignatureValidation \
+            -project "$PWD" \
+            -scheme test \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -showBuildSettings \
+            BUILD_DIR="$PWD/../../build/ios") > debug_base.log 2>&1
+          echo "Release 退出码: $?"
+          tail -10 debug_base.log
+          head -3 debug_flavor.log
 
       - name: 构建未签名 IPA（flavor 见 env.FLAVOR）
         run: |
