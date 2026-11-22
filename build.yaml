@@ -1,0 +1,10 @@
+# drift_dev 迁移工具链配置（schema 快照/迁移测试目录约定）
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          databases:
+            bubble: lib/data/database/app_database.dart
+          schema_dir: drift/
+          test_dir: test/data/database/
