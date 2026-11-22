@@ -43,9 +43,10 @@ jobs:
         run: flutter pub get
 
       - name: 静态分析
-        # 不用 --fatal-infos：Flutter 3.50 官方将 material.dart 标记 deprecated
-        # （推荐 material_ui），生态迁移期 info 不阻断 CI；error/warning 仍阻断。
-        run: flutter analyze
+        # info 不阻断（--no-fatal-infos）：Flutter 3.50 官方将 material.dart 标记
+        # deprecated（推荐 material_ui），生态迁移期 8 处 info 不算失败；
+        # error/warning 仍阻断。迁移决策记录于阶段 1 报告 §9。
+        run: flutter analyze --no-fatal-infos
 
       - name: 单元测试
         run: flutter test
