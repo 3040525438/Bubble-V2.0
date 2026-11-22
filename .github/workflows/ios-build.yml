@@ -58,7 +58,7 @@ jobs:
           mv "bubble-unsigned-$FLAVOR.ipa" "build/ios/ipa/bubble-unsigned-$FLAVOR.ipa"
           rm -rf Payload
 
-      - name: 收集产物信息（路径 / 大小 / SHA256）
+      - name: 收集产物信息（路径 / 大小 / SHA256 / Bundle ID）
         run: |
           mkdir -p artifacts
           IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n 1)
@@ -66,12 +66,17 @@ jobs:
           ls -lh "$IPA_PATH"
           shasum -a 256 "$IPA_PATH" | tee artifacts/SHA256.txt
           cp "$IPA_PATH" artifacts/
-          # 归档 Bundle ID 与显示名，验证版本标识正确
-          APP_PATH=$(ls build/ios/archive/*.xcarchive/Products/Applications/Runner.app | head -n 1)
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist" > artifacts/bundle-id.txt
-          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$APP_PATH/Info.plist" > artifacts/display-name.txt || true
+          # 从 IPA 内部提取 Info.plist 验证版本标识（测试版/正式版 Bundle ID 正确性）
+          unzip -p "$IPA_PATH" "Payload/Runner.app/Info.plist" > /tmp/plist.bin 2>/dev/null || true
+          if [ -s /tmp/plist.bin ]; then
+            plutil -convert xml1 /tmp/plist.bin -o /tmp/plist.xml 2>/dev/null || true
+            (grep -A1 -E "CFBundleIdentifier|CFBundleDisplayName" /tmp/plist.xml || true) | tee artifacts/bundle-id.txt
+          else
+            echo "IPA 内 Info.plist 提取失败，记录 archive 结构供排查" | tee artifacts/bundle-id.txt
+            find build/ios/archive -name "*.plist" | head -10 | tee -a artifacts/bundle-id.txt
+          fi
           flutter --version > artifacts/flutter-version.txt
-          cat artifacts/SHA256.txt artifacts/bundle-id.txt artifacts/display-name.txt
+          cat artifacts/SHA256.txt artifacts/bundle-id.txt
 
       - name: 上传 IPA 产物
         uses: actions/upload-artifact@v4
