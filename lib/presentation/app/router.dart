@@ -6,6 +6,11 @@ import '../pages/chat_page.dart';
 import '../pages/core_persona_edit_page.dart';
 import '../pages/home_shell.dart';
 import '../pages/lock_screen.dart';
+import '../pages/memory_center_page.dart';
+import '../pages/memory_conflict_page.dart';
+import '../pages/memory_detail_page.dart';
+import '../pages/memory_inbox_page.dart';
+import '../pages/memory_inject_preview_page.dart';
 import '../pages/model_manage_page.dart';
 import '../pages/persona_center_page.dart';
 import '../pages/placeholder_page.dart';
@@ -47,7 +52,33 @@ final GoRouter appRouter = GoRouter(
 );
 
 List<GoRoute> _simpleRoutes() => [
-      _route(AppRoutes.memory, '记忆中心'),
+      // 记忆中心（阶段 5 正式页面）+ 详情/收件箱/冲突裁决/注入预览
+      GoRoute(
+        path: AppRoutes.memory,
+        builder: (context, state) => const MemoryCenterPage(),
+        routes: [
+          GoRoute(
+            path: 'detail/:memoryId',
+            builder: (context, state) => MemoryDetailPage(
+              memoryId: state.pathParameters['memoryId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: 'inbox',
+            builder: (context, state) => const MemoryInboxPage(),
+          ),
+          GoRoute(
+            path: 'conflict/:memoryId',
+            builder: (context, state) => MemoryConflictPage(
+              memoryId: state.pathParameters['memoryId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: 'inject',
+            builder: (context, state) => const MemoryInjectPreviewPage(),
+          ),
+        ],
+      ),
       // 人格中心（阶段 4 正式页面）+ 核心人格编辑
       GoRoute(
         path: AppRoutes.persona,

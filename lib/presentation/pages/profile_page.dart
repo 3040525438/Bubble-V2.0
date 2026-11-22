@@ -88,7 +88,7 @@ class ProfilePage extends StatelessWidget {
           _EntryCard(
             icon: Icons.auto_stories_rounded,
             title: '记忆中心',
-            subtitle: '她记得的关于你的一切（阶段 5 开放）',
+            subtitle: '收件箱、常驻记忆与冲突裁决',
             onTap: () => context.push('/memory'),
           ),
           _EntryCard(
