@@ -10,9 +10,11 @@ import 'package:go_router/go_router.dart';
 import '../../data/database/app_database.dart';
 import '../../data/database/db_provider.dart';
 import '../../data/repositories/conversation_repository.dart';
+import '../../data/repositories/model_repository.dart';
 import '../../domain/chat/chat_provider.dart';
 import '../../domain/chat/echo_provider.dart';
 import '../../domain/chat/message_status.dart';
+import '../chat/chat_provider_resolver.dart';
 import '../chat/chat_session_controller.dart';
 import '../theme/bubble_colors.dart';
 import '../utils/time_format.dart';
@@ -26,6 +28,7 @@ class ChatPage extends StatefulWidget {
     super.key,
     required this.conversationId,
     this.repository,
+    this.modelRepository,
     this.provider,
   });
 
@@ -33,6 +36,7 @@ class ChatPage extends StatefulWidget {
 
   /// 可选注入（测试用）；默认使用全局数据库
   final ConversationRepository? repository;
+  final ModelRepository? modelRepository;
   final ChatCompletionProvider? provider;
 
   @override
@@ -42,15 +46,15 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   late final ConversationRepository _repo =
       widget.repository ?? ConversationRepository(AppDb.instance);
-  late final ChatCompletionProvider _provider =
-      widget.provider ?? const EchoProvider();
-  late final ChatSessionController _session = ChatSessionController(
-    repository: _repo,
-    provider: _provider,
-    conversationId: widget.conversationId,
-  );
+  late final ModelRepository _modelRepo =
+      widget.modelRepository ?? ModelRepository(AppDb.instance);
   late final Stream<List<Message>> _messagesStream =
       _repo.watchMessages(widget.conversationId);
+
+  /// 解析完成前为空（bootstrap 阶段显示加载）
+  ChatCompletionProvider? _provider;
+  ChatSessionController? _session;
+  String? _providerNotice;
 
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
@@ -65,16 +69,45 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    _session.addListener(_onSessionChanged);
-    _initData();
+    _bootstrap();
   }
 
-  Future<void> _initData() async {
+  /// 解析聊天的模型来源：已配置 Key → DeepSeek；否则回退开发回声并提示。
+  Future<void> _bootstrap() async {
+    ChatCompletionProvider provider;
+    String? notice;
+    if (widget.provider != null) {
+      provider = widget.provider!;
+    } else {
+      try {
+        final resolved = await resolveChatProvider(_modelRepo);
+        provider = resolved.provider;
+        notice = resolved.notice;
+      } catch (error) {
+        provider = const EchoProvider();
+        notice = '模型解析失败 · 使用开发回声';
+      }
+    }
+
     final conv = await _repo.getConversation(widget.conversationId);
     if (!mounted) return;
-    setState(() => _title = conv?.title);
+
+    final session = ChatSessionController(
+      repository: _repo,
+      provider: provider,
+      conversationId: widget.conversationId,
+      modelRepository: provider.isMock ? null : _modelRepo,
+    );
+    session.addListener(_onSessionChanged);
+    setState(() {
+      _provider = provider;
+      _providerNotice = notice;
+      _session = session;
+      _title = conv?.title;
+    });
+
     await _repo.markConversationRead(widget.conversationId);
-    await _session.load();
+    await session.load();
   }
 
   void _onScroll() {
@@ -86,7 +119,7 @@ class _ChatPageState extends State<ChatPage> {
   void _onSessionChanged() {
     if (!mounted) return;
     setState(() {});
-    if (_session.generating) _scrollToBottom();
+    if (_session?.generating ?? false) _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -97,10 +130,11 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _handleSend(String text) async {
-    if (text.trim().isEmpty) return;
+    final session = _session;
+    if (session == null || text.trim().isEmpty) return;
     _input.clear();
     _stickToBottom = true;
-    await _session.send(text);
+    await session.send(text);
   }
 
   void _handleBack() {
@@ -156,8 +190,10 @@ class _ChatPageState extends State<ChatPage> {
     List<Message> messages,
     bool isLastAssistant,
   ) async {
+    final session = _session;
+    if (session == null) return;
     final generatingThis =
-        _session.generating && _session.activeMessageId == message.id;
+        session.generating && session.activeMessageId == message.id;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -212,27 +248,27 @@ class _ChatPageState extends State<ChatPage> {
                   item(
                     icon: Icons.refresh_rounded,
                     label: '重新生成',
-                    onTap: () => run(() => _session.regenerate(message.id)),
+                    onTap: () => run(() => session.regenerate(message.id)),
                   ),
                 if (message.role == 'assistant' &&
                     message.status == MessageStatuses.interrupted)
                   item(
                     icon: Icons.play_arrow_rounded,
                     label: '继续生成',
-                    onTap: () => run(() => _session.resume(message.id)),
+                    onTap: () => run(() => session.resume(message.id)),
                   ),
                 if (generatingThis)
                   item(
                     icon: Icons.stop_rounded,
                     label: '停止生成',
                     color: semantic.dangerDeep,
-                    onTap: () => run(() => _session.stop()),
+                    onTap: () => run(() => session.stop()),
                   ),
                 if (message.status == MessageStatuses.failed)
                   item(
                     icon: Icons.refresh_rounded,
                     label: '重试',
-                    onTap: () => run(() => _session.retry(message.id)),
+                    onTap: () => run(() => session.retry(message.id)),
                   ),
                 item(
                   icon: Icons.delete_outline_rounded,
@@ -352,8 +388,8 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void dispose() {
     _highlightTimer?.cancel();
-    _session.removeListener(_onSessionChanged);
-    _session.dispose();
+    _session?.removeListener(_onSessionChanged);
+    _session?.dispose();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -362,6 +398,8 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final semantic = context.bubbleColors;
+    final provider = _provider;
+    final session = _session;
 
     return Scaffold(
       appBar: AppBar(
@@ -391,55 +429,62 @@ class _ChatPageState extends State<ChatPage> {
       drawer: ConversationDrawer(
         repository: _repo,
         currentConversationId: widget.conversationId,
-        provider: _provider,
+        provider: provider,
       ),
-      body: Column(
-        children: [
-          if (_provider.isMock) _MockModeBanner(providerName: _provider.displayName),
-          Expanded(
-            child: StreamBuilder<List<Message>>(
-              stream: _messagesStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('消息加载失败',
-                        style: TextStyle(color: semantic.dangerDeep)),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final messages = snapshot.data!;
-                if (messages.isEmpty) return const _ChatEmptyState();
+      body: provider == null || session == null
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                if (provider.isMock)
+                  _MockModeBanner(
+                    providerName: provider.displayName,
+                    notice: _providerNotice,
+                    onConfigure: () => context.push('/models'),
+                  ),
+                Expanded(
+                  child: StreamBuilder<List<Message>>(
+                    stream: _messagesStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text('消息加载失败',
+                              style: TextStyle(color: semantic.dangerDeep)),
+                        );
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final messages = snapshot.data!;
+                      if (messages.isEmpty) return const _ChatEmptyState();
 
-                if (_stickToBottom) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!mounted || !_scroll.hasClients) return;
-                    _scroll.jumpTo(_scroll.position.maxScrollExtent);
-                  });
-                }
-                return _buildMessageList(messages);
-              },
+                      if (_stickToBottom) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted || !_scroll.hasClients) return;
+                          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+                        });
+                      }
+                      return _buildMessageList(messages);
+                    },
+                  ),
+                ),
+                if (session.pendingFailedCount > 0)
+                  _FailedQueueBar(
+                    count: session.pendingFailedCount,
+                    onRetryAll: () async {
+                      final retried = await session.retryAllFailed();
+                      if (!mounted) return;
+                      if (retried > 0) _toast('已重新生成 $retried 条消息');
+                    },
+                  ),
+                ChatInputBar(
+                  controller: _input,
+                  generating: session.generating,
+                  onSend: _handleSend,
+                  onStop: session.stop,
+                  onAttachTap: () => _toast('图片功能将在阶段 12 开放'),
+                ),
+              ],
             ),
-          ),
-          if (_session.pendingFailedCount > 0)
-            _FailedQueueBar(
-              count: _session.pendingFailedCount,
-              onRetryAll: () async {
-                final retried = await _session.retryAllFailed();
-                if (!mounted) return;
-                if (retried > 0) _toast('已重新生成 $retried 条消息');
-              },
-            ),
-          ChatInputBar(
-            controller: _input,
-            generating: _session.generating,
-            onSend: _handleSend,
-            onStop: _session.stop,
-            onAttachTap: () => _toast('图片功能将在阶段 12 开放'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -493,7 +538,7 @@ class _ChatPageState extends State<ChatPage> {
                     lastAssistant?.id == message.id,
                   ),
                   onRetryTap: message.status == MessageStatuses.failed
-                      ? () => _session.retry(message.id)
+                      ? () => _session?.retry(message.id)
                       : null,
                 ),
               ),
@@ -507,13 +552,22 @@ class _ChatPageState extends State<ChatPage> {
 
 /// 开发模式提示条（禁止把假模型伪装成真实功能）
 class _MockModeBanner extends StatelessWidget {
-  const _MockModeBanner({required this.providerName});
+  const _MockModeBanner({
+    required this.providerName,
+    this.notice,
+    this.onConfigure,
+  });
 
   final String providerName;
+  final String? notice;
+  final VoidCallback? onConfigure;
 
   @override
   Widget build(BuildContext context) {
     final semantic = context.bubbleColors;
+    final text = notice == null || notice!.isEmpty
+        ? '开发模式 · $providerName · 未接入真实模型'
+        : '开发模式 · $notice';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -524,13 +578,28 @@ class _MockModeBanner extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              '开发模式 · $providerName · 未接入真实模型',
+              text,
               style: TextStyle(
                 fontSize: BubbleFontSize.badge,
                 color: semantic.lavenderDeep,
               ),
             ),
           ),
+          if (onConfigure != null)
+            GestureDetector(
+              onTap: onConfigure,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  '去配置',
+                  style: TextStyle(
+                    fontSize: BubbleFontSize.badge,
+                    fontWeight: FontWeight.w600,
+                    color: semantic.lavenderDeep,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -48,7 +48,6 @@ void main() {
       for (final status in MessageStatuses.all) {
         expect(messageStatusLabel(status), isNotEmpty);
       }
-      expect(chatErrorText('empty_reply'), contains('重试'));
     });
   });
 }

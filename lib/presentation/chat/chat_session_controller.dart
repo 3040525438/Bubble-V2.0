@@ -8,7 +8,9 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/database/app_database.dart';
 import '../../data/repositories/conversation_repository.dart';
+import '../../data/repositories/model_repository.dart';
 import '../../domain/chat/bubble_splitter.dart';
+import '../../domain/chat/chat_error.dart';
 import '../../domain/chat/chat_provider.dart';
 import '../../domain/chat/message_status.dart';
 
@@ -17,11 +19,19 @@ class ChatSessionController extends ChangeNotifier {
     required this.repository,
     required this.provider,
     required this.conversationId,
+    this.modelRepository,
+    this.scene = 'chat',
   });
 
   final ConversationRepository repository;
   final ChatCompletionProvider provider;
   final String conversationId;
+
+  /// 用量记账仓储（真实模型接入后提供；假模型为空）
+  final ModelRepository? modelRepository;
+
+  /// 用量场景（chat/thinking/proactive...）
+  final String scene;
 
   /// 是否正在生成（输入条显示停止键）
   bool generating = false;
@@ -179,11 +189,12 @@ class ChatSessionController extends ChangeNotifier {
     _flushTimer = null;
     final content = _buffer.toString().trim();
     if (content.isEmpty) {
-      await repository.failMessage(messageId, errorCode: 'empty_reply');
+      await repository.failMessage(messageId, errorCode: ChatErrorCodes.emptyReply);
     } else {
       // 连续多气泡：首段落原消息，其余段依次（150ms 间隔）独立落库
       final segments = splitReplySegments(content);
       await repository.finishMessage(messageId, content: segments.first);
+      await _applyUsage(messageId);
       for (var i = 1; i < segments.length; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 150));
         if (_disposed || token != _generation) return;
@@ -193,13 +204,30 @@ class ChatSessionController extends ChangeNotifier {
     _completeGeneration();
   }
 
+  /// 落库 Token 用量与思考链，并按天记账（T3.2）。
+  Future<void> _applyUsage(String messageId) async {
+    final usage = provider.lastUsage;
+    if (usage == null) return;
+    await repository.applyMessageUsage(
+      messageId,
+      usage: usage,
+      modelId: provider.modelId,
+      reasoning: provider.lastReasoning,
+    );
+    final modelId = provider.modelId;
+    final ledger = modelRepository;
+    if (modelId != null && ledger != null) {
+      await ledger.recordUsage(modelId: modelId, scene: scene, usage: usage);
+    }
+  }
+
   Future<void> _failGeneration(String messageId, Object error) async {
     _flushTimer?.cancel();
     _flushTimer = null;
     lastError = error.toString();
     await repository.failMessage(
       messageId,
-      errorCode: 'generation_failed',
+      errorCode: errorCodeOf(error),
       errorDetail: error.toString(),
       content: _buffer.toString().trim(),
     );

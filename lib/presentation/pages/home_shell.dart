@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../theme/bubble_colors.dart';
 import 'conversation_list_page.dart';
 import 'placeholder_page.dart';
+import 'profile_page.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -38,9 +39,11 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final (_, _, placeholder) = _tabs[_index];
     return Scaffold(
-      body: _index == 0
-          ? const ConversationListPage()
-          : PlaceholderPage(title: placeholder),
+      body: switch (_index) {
+        0 => const ConversationListPage(),
+        3 => const ProfilePage(),
+        _ => PlaceholderPage(title: placeholder),
+      },
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),

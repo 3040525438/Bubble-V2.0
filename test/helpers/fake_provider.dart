@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:bubble/domain/chat/chat_provider.dart';
 
 /// 立即产出的假模型：按 segments 顺序输出（空行分隔 → 拆分多气泡）
-class FakeProvider implements ChatCompletionProvider {
+class FakeProvider extends ChatCompletionProvider {
   FakeProvider({
     this.segments = const ['第一段回复内容', '第二段回复内容'],
     this.shouldFail = false,
@@ -35,7 +35,7 @@ class FakeProvider implements ChatCompletionProvider {
 }
 
 /// 手动可控流：测试通过 controllers.last 主动推入分片/错误/关闭
-class ManualProvider implements ChatCompletionProvider {
+class ManualProvider extends ChatCompletionProvider {
   final List<StreamController<String>> controllers = [];
 
   @override

@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/chat/chat_provider.dart';
+import '../../domain/chat/chat_usage.dart';
 import '../../domain/chat/message_status.dart';
 import '../../domain/search/tokenizer.dart';
 import '../database/app_database.dart';
@@ -313,6 +314,26 @@ ORDER BY (CASE WHEN c.sort_weight IS NULL THEN 1 ELSE 0 END),
       MessagesCompanion(
         content: Value(content),
         status: Value(nextStatus),
+        updatedAt: Value(_nowIso()),
+      ),
+    );
+  }
+
+  /// 落库一次生成的 Token 用量与思考链（T3.2，FR-MDL-03）。
+  Future<void> applyMessageUsage(
+    String messageId, {
+    required ChatUsage usage,
+    String? modelId,
+    String? reasoning,
+  }) async {
+    await (_db.update(_db.messages)..where((t) => t.id.equals(messageId))).write(
+      MessagesCompanion(
+        tokenPrompt: Value(usage.promptTokens),
+        tokenCompletion: Value(usage.completionTokens),
+        tokenReasoning: Value(usage.reasoningTokens),
+        costEst: Value(usage.costEst),
+        modelId: Value(modelId),
+        reasoningContent: Value(reasoning),
         updatedAt: Value(_nowIso()),
       ),
     );

@@ -5,7 +5,7 @@ import 'dart:async';
 
 import 'chat_provider.dart';
 
-class EchoProvider implements ChatCompletionProvider {
+class EchoProvider extends ChatCompletionProvider {
   const EchoProvider({this.chunkDelay = const Duration(milliseconds: 18)});
 
   /// 每个分片间隔（测试可传 Duration.zero 加速）

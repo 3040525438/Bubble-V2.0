@@ -166,11 +166,11 @@ M8 交付          = 阶段 15
 - [x] T2.6 会话内搜索（bigram 过滤）（searchMessages + 搜索弹层定位高亮）
 
 ### 阶段 3
-- [ ] T3.1 ModelClient（dio+SSE 解析器，录制回放测试）
-- [ ] T3.2 models/model_usage 仓储 + Keychain Key 读写
-- [ ] T3.3 模型管理 UI（注册/启停/参数/能力徽章/用量图）
-- [ ] T3.4 错误分类层（超时/断网/429/401/余额）+ UI 文案映射
-- [ ] T3.5 真机流式聊天验收
+- [x] T3.1 ModelClient（dio+SSE 解析器，录制回放测试）（deepseek_client + sse_parser，回放 fixture）
+- [x] T3.2 models/model_usage 仓储 + Keychain Key 读写（model_repository + secure_key_store）
+- [x] T3.3 模型管理 UI（注册/启停/参数/能力徽章/用量图）（model_manage_page + 我的页入口）
+- [x] T3.4 错误分类层（超时/断网/429/401/余额）+ UI 文案映射（chat_error，含错误矩阵单测）
+- [ ] T3.5 真机流式聊天验收（需真实 API Key 与真机，待用户执行）
 
 ### 阶段 4
 - [ ] T4.1 persona 四表仓储 + 版本流转

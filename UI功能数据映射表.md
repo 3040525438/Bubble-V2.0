@@ -44,10 +44,10 @@
 
 | UI 入口 | 实际功能 | 数据来源 | 验收要求 | 状态 |
 | --- | --- | --- | --- | --- |
-| 模型管理页 | 注册/编辑/删除/启停/默认 | models 表 | 重启生效 | 未开始 |
-| API Key 录入 | 写入 Keychain 并掩码显示 | flutter_secure_storage | 不入日志/仓库 | 未开始 |
-| 连接测试按钮 | 真实 healthCheck 调用 | DeepSeek API | 真实成功/失败反馈 | 未开始 |
-| 用量页 | Token 与费用统计 | model_usage 表 | 与实际调用一致 | 未开始 |
+| 模型管理页 | 注册/编辑/删除/启停/默认 | models 表 | 重启生效 | 已完成（阶段 3） |
+| API Key 录入 | 写入 Keychain 并掩码显示 | flutter_secure_storage | 不入日志/仓库 | 已完成（阶段 3；数据库只存键名） |
+| 连接测试按钮 | 真实 healthCheck 调用 | DeepSeek API | 真实成功/失败反馈 | 已完成（阶段 3；真机真实 Key 验证待执行） |
+| 用量页 | Token 与费用统计 | model_usage 表 | 与实际调用一致 | 已完成（阶段 3；费用为估算） |
 
 ## 模块 04：人格中心
 

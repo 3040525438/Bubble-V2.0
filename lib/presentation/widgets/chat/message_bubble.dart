@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../domain/chat/chat_error.dart';
 import '../../../domain/chat/message_status.dart';
 import '../../theme/bubble_colors.dart';
 

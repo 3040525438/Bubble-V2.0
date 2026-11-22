@@ -80,20 +80,6 @@ String messageStatusLabel(String status) {
   }
 }
 
-/// 失败原因的用户可执行文案（阶段 2 仅生成失败；阶段 3 扩展网络矩阵）。
-String chatErrorText(String? errorCode) {
-  switch (errorCode) {
-    case 'empty_reply':
-      return '泡泡没有生成内容，点按重试';
-    case 'generation_failed':
-      return '生成中断，点按重试';
-    case 'interrupted':
-      return '上次生成被中断，点按重试';
-    default:
-      return '生成失败，点按重试';
-  }
-}
-
 /// 是否处于「可被启动流程判定为悬挂」的非终态。
 bool isUnfinishedStatus(String status) =>
     status == MessageStatuses.sending || status == MessageStatuses.streaming;
