@@ -1,4 +1,4 @@
-// 聊天输入条（T2.2）：图片入口占位 + 多行文本 + 发送/停止圆形按钮。
+// 聊天输入条（T2.2）：图片入口 + 多行文本 + 发送/停止圆形按钮。
 // 依据 UI_PAGE_SPEC §B5 与 UI_INTERACTION_SPEC §9（输入条按压最小点击区 44）。
 import 'package:flutter/material.dart';
 
@@ -12,6 +12,7 @@ class ChatInputBar extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     this.onAttachTap,
+    this.canSend = false,
   });
 
   final TextEditingController controller;
@@ -19,8 +20,11 @@ class ChatInputBar extends StatelessWidget {
   final ValueChanged<String> onSend;
   final VoidCallback onStop;
 
-  /// 图片入口（阶段 12 落地，当前为提示占位）
+  /// 图片入口（阶段 12：选图 → 本地保存 + 能力检测）
   final VoidCallback? onAttachTap;
+
+  /// 无文字但有待发图片时也允许发送
+  final bool canSend;
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +45,10 @@ class ChatInputBar extends StatelessWidget {
           children: [
             IconButton(
               onPressed: onAttachTap,
-              tooltip: '图片（后续阶段开放）',
+              tooltip: '添加图片',
               icon: Icon(
-                Icons.add_circle_outline_rounded,
-                color: onSurface.withValues(alpha: 0.4),
+                Icons.add_photo_alternate_outlined,
+                color: onSurface.withValues(alpha: 0.55),
               ),
             ),
             Expanded(
@@ -90,11 +94,12 @@ class ChatInputBar extends StatelessWidget {
                   );
                 }
                 final hasText = value.text.trim().isNotEmpty;
+                final enabled = hasText || canSend;
                 return _CircleButton(
                   icon: Icons.arrow_upward_rounded,
-                  color: hasText ? semantic.bubbleUserA : semantic.mist,
+                  color: enabled ? semantic.bubbleUserA : semantic.mist,
                   tooltip: '发送',
-                  onTap: hasText ? () => onSend(controller.text) : null,
+                  onTap: enabled ? () => onSend(controller.text) : null,
                 );
               },
             ),

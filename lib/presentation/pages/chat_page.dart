@@ -1,28 +1,33 @@
 // 聊天主界面（T2.2/T2.3）：消息流、气泡、时间分隔、长按菜单、输入条、
-// 多会话抽屉、会话内搜索、失败队列入口。
-// 依据 UI_PAGE_SPEC §B5、UI_INTERACTION_SPEC §2 与 ROADMAP 阶段 2。
+// 多会话抽屉、会话内搜索、失败队列入口；阶段 12 增加选图/图片气泡/全屏预览。
+// 依据 UI_PAGE_SPEC §B5、UI_INTERACTION_SPEC §2 与 ROADMAP 阶段 2/12。
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/attachment/attachment_store.dart';
 import '../../data/database/app_database.dart';
 import '../../data/database/db_provider.dart';
 import '../../data/context/chat_context_assembler.dart';
+import '../../data/repositories/attachment_repository.dart';
 import '../../data/repositories/conversation_repository.dart';
 import '../../data/repositories/model_repository.dart';
 import '../../domain/chat/chat_provider.dart';
 import '../../domain/chat/echo_provider.dart';
 import '../../domain/chat/message_status.dart';
+import '../../domain/image/image_models.dart';
 import '../chat/chat_provider_resolver.dart';
 import '../chat/chat_session_controller.dart';
+import '../chat/image_picker_service.dart';
 import '../theme/bubble_colors.dart';
 import '../utils/time_format.dart';
 import '../widgets/chat/chat_input_bar.dart';
 import '../widgets/chat/conversation_actions.dart';
 import '../widgets/chat/conversation_drawer.dart';
 import '../widgets/chat/message_bubble.dart';
+import 'image_preview_page.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({
@@ -31,6 +36,9 @@ class ChatPage extends StatefulWidget {
     this.repository,
     this.modelRepository,
     this.provider,
+    this.attachmentRepository,
+    this.attachmentStore,
+    this.imagePicker,
     this.contextAssembler,
   });
 
@@ -40,6 +48,13 @@ class ChatPage extends StatefulWidget {
   final ConversationRepository? repository;
   final ModelRepository? modelRepository;
   final ChatCompletionProvider? provider;
+
+  /// 图片附件仓储/存储（测试注入临时目录）
+  final AttachmentRepository? attachmentRepository;
+  final AttachmentStore? attachmentStore;
+
+  /// 选图服务（测试注入假实现，避免触碰相册平台通道）
+  final ImagePickerService? imagePicker;
 
   /// 上下文组装回调（测试注入）；为空时真实模型自动启用 ContextBuilder
   final ContextAssemblerCallback? contextAssembler;
@@ -53,8 +68,20 @@ class _ChatPageState extends State<ChatPage> {
       widget.repository ?? ConversationRepository(AppDb.instance);
   late final ModelRepository _modelRepo =
       widget.modelRepository ?? ModelRepository(AppDb.instance);
+  late final AttachmentStore _attachmentStore =
+      widget.attachmentStore ?? AttachmentStore();
+  late final AttachmentRepository _attachmentRepo =
+      widget.attachmentRepository ??
+          AttachmentRepository(AppDb.instance, store: _attachmentStore);
+  late final ImagePickerService _picker =
+      widget.imagePicker ?? DeviceImagePickerService();
   late final Stream<List<Message>> _messagesStream =
       _repo.watchMessages(widget.conversationId);
+  late final Stream<List<Attachment>> _attachmentsStream =
+      _attachmentRepo.watchMessageAttachments(widget.conversationId);
+
+  /// 待发送图片（发送成功或清空时释放）
+  final List<PickedImage> _pendingImages = [];
 
   /// 解析完成前为空（bootstrap 阶段显示加载）
   ChatCompletionProvider? _provider;
@@ -75,6 +102,17 @@ class _ChatPageState extends State<ChatPage> {
     super.initState();
     _scroll.addListener(_onScroll);
     _bootstrap();
+    _bootstrapAttachments();
+  }
+
+  /// 附件存储根目录解析（失败不阻断聊天，图片区域显示占位）
+  Future<void> _bootstrapAttachments() async {
+    try {
+      await _attachmentStore.ensureReady();
+      if (mounted) setState(() {});
+    } catch (_) {
+      // 存储不可用时图片显示「文件缺失」占位，文字聊天不受影响
+    }
   }
 
   /// 解析聊天的模型来源：已配置 Key → DeepSeek；否则回退开发回声并提示。
@@ -107,6 +145,7 @@ class _ChatPageState extends State<ChatPage> {
       provider: provider,
       conversationId: widget.conversationId,
       modelRepository: provider.isMock ? null : _modelRepo,
+      attachmentRepository: _attachmentRepo,
       contextAssembler: assembler,
     );
     session.addListener(_onSessionChanged);
@@ -142,10 +181,111 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _handleSend(String text) async {
     final session = _session;
-    if (session == null || text.trim().isEmpty) return;
+    if (session == null) return;
+    final images = [..._pendingImages];
+    if (text.trim().isEmpty && images.isEmpty) return;
     _input.clear();
     _stickToBottom = true;
-    await session.send(text);
+    setState(_pendingImages.clear);
+    try {
+      await session.sendWithImages(
+        text,
+        [
+          for (final image in images)
+            OutgoingImage(bytes: image.bytes, fileName: image.fileName),
+        ],
+      );
+    } catch (error) {
+      if (!mounted) return;
+      // 校验失败：恢复待发图片，明确提示原因（不静默丢弃）
+      setState(() => _pendingImages.insertAll(0, images));
+      if (error is UnsupportedImageException ||
+          error is ImageTooLargeException) {
+        _toast('$error');
+      } else {
+        _toast('图片发送失败：$error');
+      }
+    }
+  }
+
+  /// 选图入口：模型不支持视觉时先明确提示（FR-IMG-02），用户确认后仍可仅本地保存。
+  Future<void> _handleAttach() async {
+    final provider = _provider;
+    if (provider == null || (_session?.generating ?? false)) return;
+    if (!provider.supportsVision) {
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('当前模型不支持看图'),
+          content: const Text(VisionCapability.unsupportedNotice),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'configure'),
+              child: const Text('去配置模型'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'add'),
+              child: const Text('仍要添加'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (choice == 'configure') {
+        context.push('/models');
+        return;
+      }
+      if (choice != 'add') return;
+    }
+
+    List<PickedImage> picked;
+    try {
+      picked = await _picker.pickImages();
+    } catch (_) {
+      _toast('无法打开相册');
+      return;
+    }
+    if (picked.isEmpty || !mounted) return;
+    final room = kMaxImagesPerMessage - _pendingImages.length;
+    setState(() {
+      _pendingImages.addAll(picked.take(room < 0 ? 0 : room));
+    });
+    if (picked.length > room) {
+      _toast('一条消息最多 $kMaxImagesPerMessage 张图片');
+    }
+  }
+
+  void _removePendingImage(int index) {
+    if (index < 0 || index >= _pendingImages.length) return;
+    setState(() => _pendingImages.removeAt(index));
+  }
+
+  void _openImagePreview(List<Attachment> attachments, int index) {
+    final images = [
+      for (final attachment in attachments)
+        GalleryImage(
+          id: attachment.id,
+          relPath: attachment.relPath,
+          ownerKind: attachment.ownerKind,
+          ownerId: attachment.ownerId,
+          createdAt:
+              (DateTime.tryParse(attachment.createdAt) ?? DateTime.now())
+                  .toLocal(),
+          mime: attachment.mime,
+          ocrText: attachment.ocrText,
+        ),
+    ];
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => ImagePreviewPage(
+        images: images,
+        store: _attachmentStore,
+        initialIndex: index,
+      ),
+    ));
   }
 
   void _handleBack() {
@@ -453,28 +593,45 @@ class _ChatPageState extends State<ChatPage> {
                     onConfigure: () => context.push('/models'),
                   ),
                 Expanded(
-                  child: StreamBuilder<List<Message>>(
-                    stream: _messagesStream,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Text('消息加载失败',
-                              style: TextStyle(color: semantic.dangerDeep)),
-                        );
+                  child: StreamBuilder<List<Attachment>>(
+                    stream: _attachmentsStream,
+                    builder: (context, attachmentSnapshot) {
+                      final byMessage = <String, List<Attachment>>{};
+                      for (final attachment in attachmentSnapshot.data ??
+                          const <Attachment>[]) {
+                        byMessage
+                            .putIfAbsent(attachment.ownerId, () => [])
+                            .add(attachment);
                       }
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final messages = snapshot.data!;
-                      if (messages.isEmpty) return const _ChatEmptyState();
+                      return StreamBuilder<List<Message>>(
+                        stream: _messagesStream,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text('消息加载失败',
+                                  style: TextStyle(color: semantic.dangerDeep)),
+                            );
+                          }
+                          if (!snapshot.hasData) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+                          final messages = snapshot.data!;
+                          if (messages.isEmpty) return const _ChatEmptyState();
 
-                      if (_stickToBottom) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (!mounted || !_scroll.hasClients) return;
-                          _scroll.jumpTo(_scroll.position.maxScrollExtent);
-                        });
-                      }
-                      return _buildMessageList(messages);
+                          if (_stickToBottom) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted || !_scroll.hasClients) return;
+                              _scroll.jumpTo(_scroll.position.maxScrollExtent);
+                            });
+                          }
+                          return _buildMessageList(
+                            messages,
+                            byMessage,
+                            provider,
+                          );
+                        },
+                      );
                     },
                   ),
                 ),
@@ -487,19 +644,29 @@ class _ChatPageState extends State<ChatPage> {
                       if (retried > 0) _toast('已重新生成 $retried 条消息');
                     },
                   ),
+                if (_pendingImages.isNotEmpty)
+                  _PendingImageStrip(
+                    images: _pendingImages,
+                    onRemove: _removePendingImage,
+                  ),
                 ChatInputBar(
                   controller: _input,
                   generating: session.generating,
+                  canSend: _pendingImages.isNotEmpty,
                   onSend: _handleSend,
                   onStop: session.stop,
-                  onAttachTap: () => _toast('图片功能将在阶段 12 开放'),
+                  onAttachTap: _handleAttach,
                 ),
               ],
             ),
     );
   }
 
-  Widget _buildMessageList(List<Message> messages) {
+  Widget _buildMessageList(
+    List<Message> messages,
+    Map<String, List<Attachment>> attachmentsByMessage,
+    ChatCompletionProvider provider,
+  ) {
     // 最后一条助手消息（「重新生成」只允许作用于它，保证 seq 顺序不乱）
     Message? lastAssistant;
     for (final m in messages) {
@@ -530,6 +697,8 @@ class _ChatPageState extends State<ChatPage> {
         final key = highlight
             ? _messageKeys.putIfAbsent(message.id, () => GlobalKey())
             : null;
+        final attachments =
+            attachmentsByMessage[message.id] ?? const <Attachment>[];
 
         return Column(
           children: [
@@ -543,6 +712,15 @@ class _ChatPageState extends State<ChatPage> {
                   message: message,
                   showAvatar: !withinGroup,
                   highlight: highlight,
+                  attachments: attachments,
+                  attachmentStore: _attachmentStore,
+                  imageLocalBadge:
+                      attachments.isNotEmpty && !provider.supportsVision
+                          ? VisionCapability.badgeText(mock: provider.isMock)
+                          : null,
+                  onImageTap: attachments.isEmpty
+                      ? null
+                      : (index) => _openImagePreview(attachments, index),
                   onLongPress: () => _showMessageActions(
                     message,
                     messages,
@@ -686,6 +864,72 @@ class _TimeDivider extends StatelessWidget {
             color: onSurface.withValues(alpha: 0.5),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 待发送图片缩略条（发送前可逐张移除）
+class _PendingImageStrip extends StatelessWidget {
+  const _PendingImageStrip({required this.images, required this.onRemove});
+
+  final List<PickedImage> images;
+  final void Function(int index) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.bubbleColors;
+    return Container(
+      key: const ValueKey('pending-image-strip'),
+      height: 82,
+      color: Theme.of(context).colorScheme.surface,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: images.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.memory(
+                  images[index].bytes,
+                  width: 66,
+                  height: 66,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    width: 66,
+                    height: 66,
+                    color: semantic.surfaceAlt,
+                    child: Icon(Icons.broken_image_outlined,
+                        size: 20, color: semantic.dangerDeep),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -6,
+                top: -6,
+                child: GestureDetector(
+                  key: ValueKey('pending-image-remove-$index'),
+                  onTap: () => onRemove(index),
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.2),
+                    ),
+                    child: const Icon(Icons.close_rounded,
+                        size: 13, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

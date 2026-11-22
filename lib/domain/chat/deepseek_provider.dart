@@ -10,6 +10,7 @@ class DeepSeekProvider implements ChatCompletionProvider {
     required this.modelTag,
     this.recordId,
     this.params,
+    this.vision = false,
     String? displayName,
   }) : _displayName = displayName;
 
@@ -17,6 +18,9 @@ class DeepSeekProvider implements ChatCompletionProvider {
   final String modelTag;
   final String? recordId;
   final Map<String, dynamic>? params;
+
+  /// 模型视觉能力（来自 models.capabilities，FR-IMG-02）
+  final bool vision;
   final String? _displayName;
 
   ChatUsage? _lastUsage;
@@ -30,6 +34,9 @@ class DeepSeekProvider implements ChatCompletionProvider {
 
   @override
   bool get isMock => false;
+
+  @override
+  bool get supportsVision => vision;
 
   @override
   String? get modelId => recordId;

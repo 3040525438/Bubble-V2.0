@@ -3,20 +3,31 @@
 // 设计说明：消息事实一律写库，UI 通过 drift watch 渲染，避免内存与库不一致；
 // 本控制器只负责「生成流水线」这一临时状态。
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
 import '../../data/database/app_database.dart';
+import '../../data/repositories/attachment_repository.dart';
 import '../../data/repositories/conversation_repository.dart';
 import '../../data/repositories/model_repository.dart';
 import '../../domain/chat/bubble_splitter.dart';
 import '../../domain/chat/chat_error.dart';
 import '../../domain/chat/chat_provider.dart';
 import '../../domain/chat/message_status.dart';
+import '../../domain/image/image_models.dart';
 
 /// 上下文组装回调（阶段 6）：把原始会话历史装配为含 system 的消息列表。
 typedef ContextAssemblerCallback = Future<List<ChatTurn>> Function(
     List<ChatTurn> history);
+
+/// 待发送图片（阶段 12）：仅内存传递，落盘由附件仓储负责。
+class OutgoingImage {
+  const OutgoingImage({required this.bytes, required this.fileName});
+
+  final Uint8List bytes;
+  final String fileName;
+}
 
 class ChatSessionController extends ChangeNotifier {
   ChatSessionController({
@@ -24,6 +35,7 @@ class ChatSessionController extends ChangeNotifier {
     required this.provider,
     required this.conversationId,
     this.modelRepository,
+    this.attachmentRepository,
     this.contextAssembler,
     this.scene = 'chat',
   });
@@ -34,6 +46,9 @@ class ChatSessionController extends ChangeNotifier {
 
   /// 用量记账仓储（真实模型接入后提供；假模型为空）
   final ModelRepository? modelRepository;
+
+  /// 附件仓储（阶段 12：图片消息落盘与绑定）
+  final AttachmentRepository? attachmentRepository;
 
   /// 上下文组装（人格 + 记忆）；为空时直接使用原始历史
   final ContextAssemblerCallback? contextAssembler;
@@ -73,14 +88,57 @@ class ChatSessionController extends ChangeNotifier {
   }
 
   /// 发送用户消息并开始生成。
-  Future<void> send(String raw) async {
+  Future<void> send(String raw) => sendWithImages(raw, const []);
+
+  /// 发送文字 + 图片（阶段 12）。
+  ///
+  /// 图片先落盘并绑定到用户消息；模型不支持视觉时明确降级为纯文字
+  /// （图片仅本地保存，不放入请求体，FR-IMG-02）。
+  Future<void> sendWithImages(String raw, List<OutgoingImage> images) async {
     final text = raw.trim();
-    if (text.isEmpty || generating) return;
+    if ((text.isEmpty && images.isEmpty) || generating) return;
+    if (images.length > kMaxImagesPerMessage) {
+      throw ArgumentError('一条消息最多 ${kMaxImagesPerMessage} 张图片');
+    }
+    // 先做无 IO 的格式/大小校验，避免消息写完才发现图片不可用
+    for (final image in images) {
+      requireImageMime(image.fileName);
+      requireImageSize(image.bytes.length);
+    }
+
     lastError = null;
-    await repository.ensureTitleFromMessage(conversationId, text);
-    await repository.appendUserMessage(conversationId, text);
+    final content = text.isEmpty ? '[图片]' : text;
+    await repository.ensureTitleFromMessage(conversationId, content);
+    final userMessage = await repository.appendUserMessage(conversationId, content);
+    await _attachImages(userMessage.id, images);
     final assistant = await repository.beginAssistantMessage(conversationId);
-    await _startGeneration(assistant.id);
+    await _startGeneration(
+      assistant.id,
+      images: provider.supportsVision
+          ? [
+              for (final image in images)
+                ChatImagePart(
+                  mime: requireImageMime(image.fileName),
+                  bytes: image.bytes,
+                ),
+            ]
+          : const [],
+    );
+  }
+
+  /// 图片落盘并绑定到消息（失败不影响已落库的文字消息，错误交给 UI 提示）
+  Future<void> _attachImages(String messageId, List<OutgoingImage> images) async {
+    final repo = attachmentRepository;
+    if (repo == null || images.isEmpty) return;
+    for (final image in images) {
+      await repo.addImage(
+        ownerKind: 'message',
+        ownerId: messageId,
+        messageId: messageId,
+        bytes: image.bytes,
+        fileName: image.fileName,
+      );
+    }
   }
 
   /// 停止生成：保留半成品（interrupted）；若一个字都没生成则删掉占位气泡。
@@ -153,7 +211,10 @@ class ChatSessionController extends ChangeNotifier {
     return count;
   }
 
-  Future<void> _startGeneration(String messageId) async {
+  Future<void> _startGeneration(
+    String messageId, {
+    List<ChatImagePart> images = const [],
+  }) async {
     final token = ++_generation;
     _buffer.clear();
     generating = true;
@@ -175,6 +236,10 @@ class ChatSessionController extends ChangeNotifier {
         payload = history;
       }
     }
+    // 图片只随本轮最后一条用户消息发送（历史图片以 [图片] 文本呈现，控制请求体积）
+    if (images.isNotEmpty) {
+      payload = _attachImagesToLastUserTurn(payload, images);
+    }
     if (token != _generation || _disposed) return;
 
     _sub = provider.stream(payload).listen(
@@ -193,6 +258,23 @@ class ChatSessionController extends ChangeNotifier {
       },
       cancelOnError: true,
     );
+  }
+
+  /// 把图片附到本轮最后一条用户消息上（system/历史消息保持文本）
+  List<ChatTurn> _attachImagesToLastUserTurn(
+    List<ChatTurn> turns,
+    List<ChatImagePart> images,
+  ) {
+    final index = turns.lastIndexWhere((turn) => turn.role == 'user');
+    if (index < 0) return turns;
+    final updated = [...turns];
+    final turn = updated[index];
+    updated[index] = ChatTurn(
+      role: 'user',
+      content: turn.content,
+      images: images,
+    );
+    return updated;
   }
 
   /// 流式增量节流写库（80ms），避免每 chunk 一次事务。

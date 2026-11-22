@@ -35,10 +35,7 @@ class DeepSeekClient {
 
     final body = <String, dynamic>{
       'model': modelTag,
-      'messages': [
-        for (final turn in history)
-          {'role': turn.role, 'content': turn.content},
-      ],
+      'messages': [for (final turn in history) _messageJson(turn)],
       'stream': true,
       'stream_options': {'include_usage': true},
       ...?params,
@@ -86,6 +83,27 @@ class DeepSeekClient {
         cancelToken.cancel('stream finished');
       }
     }
+  }
+
+  /// 单条消息体：带图片时按 OpenAI 兼容多模态格式（text + image_url data URL）。
+  Map<String, dynamic> _messageJson(ChatTurn turn) {
+    if (turn.images.isEmpty) {
+      return {'role': turn.role, 'content': turn.content};
+    }
+    final text = turn.content.trim();
+    return {
+      'role': turn.role,
+      'content': [
+        if (text.isNotEmpty) {'type': 'text', 'text': turn.content},
+        for (final image in turn.images)
+          {
+            'type': 'image_url',
+            'image_url': {
+              'url': 'data:${image.mime};base64,${base64Encode(image.bytes)}',
+            },
+          },
+      ],
+    };
   }
 
   ChatFailure _mapDioError(DioException error) {

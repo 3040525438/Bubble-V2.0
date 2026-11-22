@@ -119,6 +119,12 @@ class ProfilePage extends StatelessWidget {
             onTap: () => context.push('/diary'),
           ),
           _EntryCard(
+            icon: Icons.photo_library_rounded,
+            title: '图片库',
+            subtitle: '聊天与说说里的图片，只在本地',
+            onTap: () => context.push('/gallery'),
+          ),
+          _EntryCard(
             icon: Icons.tune_rounded,
             title: '设置',
             subtitle: '主动性、通知与数据管理',

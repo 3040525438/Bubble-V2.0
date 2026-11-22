@@ -9,6 +9,7 @@ import '../pages/diary_detail_page.dart';
 import '../pages/diary_page.dart';
 import '../pages/experience_detail_page.dart';
 import '../pages/home_shell.dart';
+import '../pages/image_gallery_page.dart';
 import '../pages/letter_compose_page.dart';
 import '../pages/letter_detail_page.dart';
 import '../pages/letters_page.dart';
@@ -155,6 +156,11 @@ List<GoRoute> _simpleRoutes() => [
     path: '/letters/:letterId',
     builder: (context, state) =>
         LetterDetailPage(letterId: state.pathParameters['letterId'] ?? ''),
+  ),
+  // 图片库（阶段 12）：全屏预览由页面内 Navigator.push 覆盖层完成
+  GoRoute(
+    path: '/gallery',
+    builder: (context, state) => const ImageGalleryPage(),
   ),
   // 上下文调试预览（阶段 6）
   GoRoute(

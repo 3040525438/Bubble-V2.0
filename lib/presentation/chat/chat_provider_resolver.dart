@@ -53,6 +53,7 @@ Future<ResolvedChatProvider> resolveChatProvider(ModelRepository models) async {
     baseUrl: model.apiBaseUrl ?? kDeepSeekDefaultBaseUrl,
   );
   final params = ModelParams.parse(model.params);
+  final capabilities = ModelCapabilities.parse(model.capabilities);
 
   return ResolvedChatProvider(
     provider: DeepSeekProvider(
@@ -60,6 +61,7 @@ Future<ResolvedChatProvider> resolveChatProvider(ModelRepository models) async {
       modelTag: model.modelTag,
       recordId: model.id,
       displayName: model.displayName,
+      vision: capabilities.vision,
       params: {
         'temperature': params.temperature,
         'max_tokens': params.maxTokens,
