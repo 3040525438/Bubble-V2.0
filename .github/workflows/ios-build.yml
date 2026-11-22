@@ -46,6 +46,27 @@ jobs:
       - name: 拉取依赖
         run: flutter pub get
 
+      - name: 调试：直接运行 showBuildSettings（定位构建设置解析失败）
+        run: |
+          SCHEME="$(tr '[:lower:]' '[:upper:]' <<< "${FLAVOR:0:1}")${FLAVOR:1}"
+          CONFIG="Release-$SCHEME"
+          echo "scheme=$SCHEME configuration=$CONFIG"
+          xcodebuild -list -project ios/Runner.xcodeproj
+          set +e
+          # 完整复刻 flutter_tools getBuildSettings 的调用参数
+          xcodebuild \
+            -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages" \
+            -skipPackagePluginValidation \
+            -skipPackageSignatureValidation \
+            -project "$PWD/ios/Runner.xcodeproj" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIG" \
+            -destination 'generic/platform=iOS' \
+            -showBuildSettings \
+            BUILD_DIR="$PWD/build/ios" > showBuildSettings.log 2>&1
+          echo "showBuildSettings 退出码: $?"
+          tail -60 showBuildSettings.log
+
       - name: 构建未签名 IPA（flavor 见 env.FLAVOR）
         run: |
           flutter build ipa --release --no-codesign --flavor "$FLAVOR"
