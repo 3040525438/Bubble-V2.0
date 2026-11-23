@@ -39,8 +39,8 @@ class _BackgroundLogsPageState extends State<BackgroundLogsPage> {
 
   static const _eventLabels = <String, String>{
     'submit': '提交后台任务',
-    'submit_skipped': '跳过后台任务',
-    'submit_failed': '提交失败',
+    'submit_skipped': '已跳过后台任务',
+    'submit_failed': '提交未成功',
     'start': '任务开始',
     'finish': '任务完成',
     'finish_meta': '任务耗时',
@@ -159,13 +159,36 @@ class _BackgroundLogsPageState extends State<BackgroundLogsPage> {
           : ListView.separated(
               key: const ValueKey('bg-logs-list'),
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-              itemCount: _logs.length + 1,
+              itemCount: _logs.length + 2,
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
-                if (index == _logs.length) return _footnote(onSurface);
-                return _logTile(context, _logs[index], onSurface);
+                if (index == 0) return _degradeHint(onSurface);
+                if (index == _logs.length + 1) return _footnote(onSurface);
+                return _logTile(context, _logs[index - 1], onSurface);
               },
             ),
+    );
+  }
+
+  /// 常驻说明：后台刷新失败是 iOS 的正常降级，避免被误读为功能故障。
+  Widget _degradeHint(Color onSurface) {
+    return Container(
+      key: const ValueKey('bg-logs-degrade-hint'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: onSurface.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(BubbleRadius.card),
+      ),
+      child: Text(
+        '后台刷新是 iOS 的「尽力而为」能力。出现「已跳过」通常表示系统暂不提供机会：'
+        '系统设置里关闭了「后台 App 刷新」、处于低电量模式，或第三方重签改写了 Bundle ID。'
+        '聊天、消息提醒与记忆不受影响；如需提升成功率，可在系统设置开启「后台 App 刷新」。',
+        style: TextStyle(
+          fontSize: BubbleFontSize.badge,
+          height: 1.6,
+          color: onSurface.withValues(alpha: 0.55),
+        ),
+      ),
     );
   }
 

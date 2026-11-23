@@ -23,11 +23,14 @@ Info.plist（完整示例，实验版 Bundle ID）:
   UIBackgroundModes:
     - processing
   BGTaskSchedulerPermittedIdentifiers:
-    - com.<用户前缀>.bubble.test.refresh
-    - com.<用户前缀>.bubble.test.processing
+    - com.dafeiyu.bubble.bgtask.refresh
+    - com.dafeiyu.bubble.bgtask.processing
   <!-- 注意：BGTaskSchedulerPermittedIdentifiers 中的每个 ID 必须与代码注册的
       identifier 完全一致（含大小写），不一致时 submit 返回
-      BGTaskSchedulerErrorDomain Code=1 (unavailable) -->
+      BGTaskSchedulerErrorDomain Code=3 (unavailable)。
+      因此这里使用「固定标识」而不拼接 Bundle ID：未签名 IPA 经爱思助手等
+      第三方重签时 Bundle ID 可能被改写，而 plist 中的 $(PRODUCT_BUNDLE_IDENTIFIER)
+      是构建期展开值，运行期 Bundle.main.bundleIdentifier 会变化，两者不一致即触发 Code=3。 -->
 ```
 
 AppDelegate didFinishLaunching（必须在对 submit 前注册，否则 submit 返回错误）:

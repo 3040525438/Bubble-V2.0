@@ -115,4 +115,48 @@ void main() {
     final complete = calls.lastWhere((c) => c.method == 'completeTask');
     expect(complete.arguments['success'], isFalse);
   });
+
+  test('BGTaskScheduler Code=3：归为跳过并给出可读原因', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return {
+            'ok': false,
+            'errorCode':
+                'Error Domain=BGTaskSchedulerErrorDomain Code=3 "(null)"',
+          };
+        });
+    final service = BackgroundTaskService(logs: logs, isIOS: () => true);
+
+    final result = await service.submitRefresh();
+
+    expect(result.ok, isFalse);
+    expect(result.reason, contains('系统暂不提供后台刷新'));
+    final row = (await logs.recent()).single;
+    expect(row.event, 'submit_skipped');
+    expect(row.payload, contains('系统暂不提供后台刷新'));
+  });
+
+  test('错误码映射：1/2/3 与未知', () {
+    expect(
+      BackgroundTaskService.describeBackgroundError('Code=1'),
+      contains('未获许可'),
+    );
+    expect(
+      BackgroundTaskService.describeBackgroundError('Code=2'),
+      contains('已有待执行'),
+    );
+    expect(
+      BackgroundTaskService.describeBackgroundError(
+        'Error Domain=BGTaskSchedulerErrorDomain Code=3 "(null)"',
+      ),
+      contains('系统暂不提供'),
+    );
+    expect(
+      BackgroundTaskService.describeBackgroundError(null),
+      contains('未获得系统机会'),
+    );
+    expect(BackgroundTaskService.isTemporaryUnavailable('Code=3'), isTrue);
+    expect(BackgroundTaskService.isTemporaryUnavailable('Code=1'), isFalse);
+  });
 }

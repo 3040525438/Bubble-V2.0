@@ -9,13 +9,12 @@ import UIKit
   private var systemChannel: FlutterMethodChannel?
   private var pendingTasks: [String: BGTask] = [:]
 
-  private var refreshIdentifier: String {
-    (Bundle.main.bundleIdentifier ?? "com.dafeiyu.bubble") + ".refresh"
-  }
-
-  private var processingIdentifier: String {
-    (Bundle.main.bundleIdentifier ?? "com.dafeiyu.bubble") + ".processing"
-  }
+  /// 固定任务标识：不随 Bundle ID 变化。
+  /// 未签名 IPA 经第三方（爱思助手等）重签后 Bundle ID 可能被改写，
+  /// 若运行期用 Bundle ID 拼接而 Info.plist 是构建期展开值，两者不一致会导致
+  /// BGTaskScheduler 返回 Code=3（unavailable）。固定值可彻底规避该问题。
+  private let refreshIdentifier = "com.dafeiyu.bubble.bgtask.refresh"
+  private let processingIdentifier = "com.dafeiyu.bubble.bgtask.processing"
 
   override func application(
     _ application: UIApplication,

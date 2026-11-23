@@ -93,6 +93,30 @@ class BackgroundTaskService {
     return _submit('submitProcessing', earliest);
   }
 
+  /// 是否属于「系统暂时不提供后台机会」（无需按失败告警）。
+  /// Code=2 待处理任务过多、Code=3 系统暂不可用（后台刷新关闭 / 低电量 / 重签标识不一致）。
+  static bool isTemporaryUnavailable(Object? errorCode) {
+    final code = _bgErrorCode(errorCode);
+    return code == 2 || code == 3;
+  }
+
+  /// BGTaskScheduler 错误码 → 中文可读说明（不虚构成功）。
+  static String describeBackgroundError(Object? errorCode) {
+    return switch (_bgErrorCode(errorCode)) {
+      1 => '后台任务未获许可（Info.plist 标识缺失或系统限制）',
+      2 => '已有待执行的后台任务，本次跳过',
+      3 => '系统暂不提供后台刷新（后台 App 刷新关闭 / 低电量模式 / 重签标识不一致），已跳过',
+      _ => '后台刷新未获得系统机会（已跳过，不影响聊天与提醒）',
+    };
+  }
+
+  static int? _bgErrorCode(Object? raw) {
+    final text = raw?.toString() ?? '';
+    final match = RegExp(r'Code=(\d+)').firstMatch(text);
+    if (match != null) return int.tryParse(match.group(1)!);
+    return int.tryParse(text.trim());
+  }
+
   Future<BackgroundSubmitResult> _submit(
     String method,
     Duration earliest,
@@ -108,28 +132,30 @@ class BackgroundTaskService {
       });
       final map = result is Map ? Map<String, dynamic>.from(result) : null;
       final ok = map?['ok'] == true;
+      final errorCode = map?['errorCode'];
+      final detail = ok ? null : describeBackgroundError(errorCode);
+      final skipped = !ok && isTemporaryUnavailable(errorCode);
       final nextSubmitAt = ok
           ? _clock().add(earliest).millisecondsSinceEpoch
           : null;
       await _log(
-        ok ? 'submit' : 'submit_failed',
-        payload: {'method': method, 'errorCode': map?['errorCode']},
+        ok ? 'submit' : (skipped ? 'submit_skipped' : 'submit_failed'),
+        payload: {'method': method, 'errorCode': errorCode, 'reason': ?detail},
         nextSubmitAt: nextSubmitAt,
       );
-      return BackgroundSubmitResult(
-        ok: ok,
-        reason: ok ? '已提交后台任务' : '提交失败：${map?['errorCode'] ?? '未知原因'}',
-      );
+      return BackgroundSubmitResult(ok: ok, reason: ok ? '已提交后台任务' : detail!);
     } on PlatformException catch (error) {
+      final detail = describeBackgroundError('${error.code} ${error.message}');
       await _log(
         'submit_failed',
         payload: {
           'method': method,
           'code': error.code,
           'message': error.message,
+          'reason': detail,
         },
       );
-      return BackgroundSubmitResult(ok: false, reason: '提交失败：${error.code}');
+      return BackgroundSubmitResult(ok: false, reason: detail);
     } on MissingPluginException {
       await _log(
         'submit_failed',

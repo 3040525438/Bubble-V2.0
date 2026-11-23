@@ -110,14 +110,11 @@ jobs:
 
       - name: 校验后台任务配置（BGTaskScheduler）
         run: |
-          if [ "$FLAVOR" = "prod" ]; then
-            EXPECT_ID="com.dafeiyu.bubble"
-          else
-            EXPECT_ID="com.dafeiyu.bubble.test"
-          fi
-          grep -qF "<string>$EXPECT_ID.refresh</string>" /tmp/plist.xml \
+          # 任务标识固定（不随 Bundle ID 变化），避免第三方重签改写 Bundle ID 后
+          # 运行期标识与 plist 不一致导致 BGTaskScheduler Code=3。
+          grep -qF "<string>com.dafeiyu.bubble.bgtask.refresh</string>" /tmp/plist.xml \
             || { echo "::error::BGTaskSchedulerPermittedIdentifiers 缺少 refresh"; exit 1; }
-          grep -qF "<string>$EXPECT_ID.processing</string>" /tmp/plist.xml \
+          grep -qF "<string>com.dafeiyu.bubble.bgtask.processing</string>" /tmp/plist.xml \
             || { echo "::error::BGTaskSchedulerPermittedIdentifiers 缺少 processing"; exit 1; }
           grep -qF "<string>processing</string>" /tmp/plist.xml \
             || { echo "::error::UIBackgroundModes 缺少 processing"; exit 1; }
