@@ -15,8 +15,8 @@ const _sentenceEnds = {'。', '！', '？', '；', '!', '?', ';', '…'};
 /// 4. 最终条数不超过 [maxSegments]，超出部分合并到最后一条。
 List<String> splitReplySegments(
   String full, {
-  int maxSegments = 4,
-  int softMaxLength = 80,
+  int maxSegments = 5,
+  int softMaxLength = 40,
   int minSegmentLength = 2,
 }) {
   final text = full.trim();
@@ -35,7 +35,10 @@ List<String> splitReplySegments(
   } else {
     parts = [
       for (final p in parts)
-        if (p.runes.length > softMaxLength) ..._splitBySentences(p, softMaxLength) else p,
+        if (p.runes.length > softMaxLength)
+          ..._splitBySentences(p, softMaxLength)
+        else
+          p,
     ];
   }
 
@@ -79,8 +82,7 @@ List<String> _splitBySentences(String text, int softMaxLength) {
     if (rest.runes.length > softMaxLength * 2) {
       final runes = rest.runes.toList();
       for (var i = 0; i < runes.length; i += softMaxLength) {
-        out.add(String.fromCharCodes(
-            runes.skip(i).take(softMaxLength)));
+        out.add(String.fromCharCodes(runes.skip(i).take(softMaxLength)));
       }
     } else {
       out.add(rest);

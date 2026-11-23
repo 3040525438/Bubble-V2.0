@@ -65,20 +65,26 @@ class _TimelinePageState extends State<TimelinePage> {
           );
         return;
       }
-      final selected = await showModalBottomSheet<ExperienceNomination>(
+      final selected = await showModalBottomSheet<List<ExperienceNomination>>(
         context: context,
         showDragHandle: true,
         builder: (context) => _NominationSheet(nominations: nominations),
       );
-      if (selected == null) return;
-      await _repo.createFromNomination(selected);
+      if (selected == null || selected.isEmpty) return;
+      for (final nomination in selected) {
+        await _repo.createFromNomination(nomination);
+      }
       await _reload();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text('已写进时间线，之后可以补充双视角与回顾'),
+          SnackBar(
+            content: Text(
+              selected.length == 1
+                  ? '已写进时间线，之后可以补充双视角与回顾'
+                  : '已把 ${selected.length} 条候选写进时间线',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -367,10 +373,20 @@ class _NominationSheet extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       trailing: const Icon(Icons.add_circle_outline_rounded),
-                      onTap: () => Navigator.of(context).pop(nomination),
+                      onTap: () => Navigator.of(context).pop([nomination]),
                     ),
                   );
                 },
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () =>
+                    Navigator.of(context).pop(List.of(nominations)),
+                icon: const Icon(Icons.done_all_rounded, size: 18),
+                label: Text('全部加入（${nominations.length}）'),
               ),
             ),
           ],

@@ -3,6 +3,7 @@
 import '../database/app_database.dart';
 import '../notification/notification_dispatcher.dart';
 import '../repositories/conversation_repository.dart';
+import '../../domain/chat/bubble_splitter.dart';
 import 'proactive_decision_center.dart';
 
 class ProactiveChatDeliverer {
@@ -29,10 +30,18 @@ class ProactiveChatDeliverer {
     conversationId ??= (await _conversations.createConversation(
       title: '和泡泡的聊天',
     )).id;
-    final message = await _conversations.appendProactiveMessage(
+    // 与聊天回复一致：长草稿拆成多条气泡，避免一次挤成一大段
+    final segments = splitReplySegments(content);
+    var message = await _conversations.appendProactiveMessage(
       conversationId,
-      content,
+      segments.first,
     );
+    for (var i = 1; i < segments.length; i++) {
+      message = await _conversations.appendProactiveMessage(
+        conversationId,
+        segments[i],
+      );
+    }
     final preview = content.length > 20
         ? '${content.substring(0, 20)}…'
         : content;

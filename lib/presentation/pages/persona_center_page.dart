@@ -54,11 +54,13 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 2400),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(milliseconds: 2400),
+        ),
+      );
   }
 
   Future<void> _openCoreEditor() async {
@@ -126,7 +128,8 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: TextButton.styleFrom(
-                foregroundColor: context.bubbleColors.dangerDeep),
+              foregroundColor: context.bubbleColors.dangerDeep,
+            ),
             child: const Text('拒绝'),
           ),
         ],
@@ -186,7 +189,8 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: TextButton.styleFrom(
-                foregroundColor: context.bubbleColors.dangerDeep),
+              foregroundColor: context.bubbleColors.dangerDeep,
+            ),
             child: const Text('删除'),
           ),
         ],
@@ -303,15 +307,15 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
       body: _error != null
           ? Center(child: Text('加载失败：$_error'))
           : snapshot == null
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
-                  children: [
-                    _layerSeg(),
-                    const SizedBox(height: 14),
-                    ..._tabBody(snapshot),
-                  ],
-                ),
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
+              children: [
+                _layerSeg(),
+                const SizedBox(height: 14),
+                ..._tabBody(snapshot),
+              ],
+            ),
     );
   }
 
@@ -445,35 +449,37 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
   }
 
   Widget _coreFieldRow(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 74,
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: BubbleFontSize.secondary,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.55),
-                ),
-              ),
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 74,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: BubbleFontSize.secondary,
+              color: Theme.of(context).colorScheme.onSurface
+                  .withValues(alpha: 0.55),
             ),
-            Expanded(
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontSize: BubbleFontSize.bodySmall,
-                  height: 1.55,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        Expanded(
+          child: Text(
+            value.trim().isEmpty ? '未设置，点「编辑核心人格」补全' : value,
+            style: TextStyle(
+              fontSize: BubbleFontSize.bodySmall,
+              height: 1.55,
+              color: value.trim().isEmpty
+                  ? Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.38)
+                  : null,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _pendingHintCard(List<PersonaGrowthRecord> pending) {
     final semantic = context.bubbleColors;
@@ -486,7 +492,11 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
       ),
       child: Row(
         children: [
-          Icon(Icons.auto_awesome_rounded, size: 20, color: semantic.lavenderDeep),
+          Icon(
+            Icons.auto_awesome_rounded,
+            size: 20,
+            color: semantic.lavenderDeep,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -586,8 +596,9 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
                       record.afterValue ?? record.beforeValue ?? '—',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(fontSize: BubbleFontSize.secondary),
+                      style: const TextStyle(
+                        fontSize: BubbleFontSize.secondary,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -597,10 +608,8 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
                       fontSize: BubbleFontSize.badge,
                       color: record.status == 'confirmed'
                           ? semantic.successDeep
-                          : Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.4),
+                          : Theme.of(context).colorScheme.onSurface
+                                .withValues(alpha: 0.4),
                     ),
                   ),
                 ],
@@ -636,8 +645,9 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
                 child: Text(
                   '成长建议',
                   style: TextStyle(
-                      fontSize: BubbleFontSize.cardTitle,
-                      fontWeight: FontWeight.w600),
+                    fontSize: BubbleFontSize.cardTitle,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               _Badge(
@@ -688,7 +698,8 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
               TextButton(
                 onPressed: () => _reject(record),
                 style: TextButton.styleFrom(
-                    foregroundColor: semantic.dangerDeep),
+                  foregroundColor: semantic.dangerDeep,
+                ),
                 child: const Text('拒绝'),
               ),
               TextButton(
@@ -711,39 +722,35 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
     required String value,
     required Color background,
     required Color valueColor,
-  }) =>
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: BubbleFontSize.badge,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.5),
-            ),
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: TextStyle(
+          fontSize: BubbleFontSize.badge,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(BubbleRadius.badge),
+        ),
+        child: Text(
+          value,
+          style: TextStyle(
+            fontSize: BubbleFontSize.secondary,
+            color: valueColor,
+            height: 1.5,
           ),
-          const SizedBox(height: 4),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(BubbleRadius.badge),
-            ),
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: BubbleFontSize.secondary,
-                color: valueColor,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 
   // ------------------------------------------------------------ 表达样本
 
@@ -824,9 +831,7 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
                   tooltip: pinned ? '取消置顶' : '置顶',
                   onPressed: () => _togglePin(sample),
                   icon: Icon(
-                    pinned
-                        ? Icons.push_pin_rounded
-                        : Icons.push_pin_outlined,
+                    pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                     size: 18,
                     color: pinned
                         ? semantic.lavenderDeep
@@ -836,8 +841,11 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
                 IconButton(
                   tooltip: '删除',
                   onPressed: () => _deleteSample(sample),
-                  icon: Icon(Icons.delete_outline_rounded,
-                      size: 18, color: onSurface.withValues(alpha: 0.35)),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                    color: onSurface.withValues(alpha: 0.35),
+                  ),
                 ),
               ],
             ),
@@ -901,8 +909,10 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
               ),
               Expanded(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(BubbleRadius.card),
@@ -924,15 +934,18 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
                           _Badge(
                             text: _layerLabel(version.layer),
                             color: semantic.lavenderDeep,
-                            background: semantic.lavender.withValues(alpha: 0.14),
+                            background: semantic.lavender.withValues(
+                              alpha: 0.14,
+                            ),
                           ),
                           if (version.isActive == 1) ...[
                             const SizedBox(width: 6),
                             _Badge(
                               text: '当前版本',
                               color: semantic.successDeep,
-                              background:
-                                  semantic.success.withValues(alpha: 0.16),
+                              background: semantic.success.withValues(
+                                alpha: 0.16,
+                              ),
                             ),
                           ],
                         ],
@@ -941,7 +954,9 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
                       Text(
                         version.changeReason ?? '（无说明）',
                         style: const TextStyle(
-                            fontSize: BubbleFontSize.secondary, height: 1.5),
+                          fontSize: BubbleFontSize.secondary,
+                          height: 1.5,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -972,11 +987,11 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
   }
 
   String _layerLabel(String layer) => switch (layer) {
-        'core' => '核心层',
-        'growth' => '成长层',
-        'samples' => '样本层',
-        _ => layer,
-      };
+    'core' => '核心层',
+    'growth' => '成长层',
+    'samples' => '样本层',
+    _ => layer,
+  };
 
   // ------------------------------------------------------------ 通用组件
 
@@ -990,16 +1005,18 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
       ),
       child: Row(
         children: [
-          Icon(Icons.lock_outline_rounded, size: 15, color: semantic.lavenderDeep),
+          Icon(
+            Icons.lock_outline_rounded,
+            size: 15,
+            color: semantic.lavenderDeep,
+          ),
           const SizedBox(width: 7),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
                 fontSize: BubbleFontSize.badge,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
+                color: Theme.of(context).colorScheme.onSurface
                     .withValues(alpha: 0.6),
               ),
             ),
@@ -1020,19 +1037,20 @@ class _PersonaCenterPageState extends State<PersonaCenterPage> {
       ),
       child: Column(
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: BubbleFontSize.bodySmall,
-                  fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: BubbleFontSize.bodySmall,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: BubbleFontSize.badge,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
+              color: Theme.of(context).colorScheme.onSurface
                   .withValues(alpha: 0.5),
               height: 1.5,
             ),

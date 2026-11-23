@@ -5,7 +5,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/database/app_database.dart';
 import '../../data/database/db_provider.dart';
+import '../../data/diary/diary_generator.dart';
+import '../../data/letter/letter_generator.dart';
+import '../../data/notification/notification_runtime.dart';
+import '../../data/post/post_generator.dart';
+import '../../data/proactive/content_deliverer.dart';
+import '../../data/proactive/proactive_chat_deliverer.dart';
 import '../../data/proactive/proactive_decision_center.dart';
+import '../../data/repositories/conversation_repository.dart';
 import '../../data/repositories/proactive_repository.dart';
 import '../../domain/proactive/proactive_models.dart';
 import '../theme/bubble_colors.dart';
@@ -39,6 +46,19 @@ class _ProactiveCenterPageState extends State<ProactiveCenterPage> {
         AppDb.instance,
         repository: _repo,
         clock: widget.clock,
+        // 与主界面保持一致：说说/日记/信件/主动聊天真实落地，而不是只留记录
+        deliverer: contentAwareDeliverer(
+          post: PostGenerator(AppDb.instance),
+          diary: DiaryGenerator(AppDb.instance),
+          letter: LetterGenerator(AppDb.instance),
+          chat: NotificationRuntime.dispatcher == null
+              ? null
+              : ProactiveChatDeliverer(
+                  conversations: ConversationRepository(AppDb.instance),
+                  notifications: NotificationRuntime.dispatcher!,
+                ),
+          notifications: NotificationRuntime.dispatcher,
+        ),
       );
 
   ProactiveSettings _settings = const ProactiveSettings();

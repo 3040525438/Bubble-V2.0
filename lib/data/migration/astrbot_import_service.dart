@@ -844,13 +844,21 @@ class AstrBotImportService {
           errors.add('会话 $conversationId 消息写入失败：$e');
         }
       }
-      // 回填会话统计
+      // 回填会话统计；同时把最后消息时间推进到源里的最新一条（覆盖/增量导入可能有更晚的消息）
       await _db.customStatement(
         'UPDATE conversations SET message_count = '
         '(SELECT COUNT(*) FROM messages WHERE conversation_id = ?) '
         'WHERE id = ?',
         [targetConversationId, targetConversationId],
       );
+      final lastMs = list.last.createdAtMs;
+      if (lastMs > 0) {
+        await _db.customStatement(
+          'UPDATE conversations SET last_message_at = '
+          'MAX(COALESCE(last_message_at, 0), ?) WHERE id = ?',
+          [lastMs, targetConversationId],
+        );
+      }
     }
 
     return (
@@ -860,6 +868,89 @@ class AstrBotImportService {
       errors: errors,
     );
   }
+
+  /// 把 AstrBot 的整段提示词映射为核心人格六字段（能识别小标题就分段，否则全文放「身份」）。
+  static Map<String, dynamic> _personaContentJson(AstrPersonaRow persona) {
+    final prompt = persona.systemPrompt.trim();
+    final fields = _splitPersonaPrompt(prompt);
+    return {
+      'identity': fields.$1,
+      'personality': fields.$2,
+      'values': fields.$3,
+      'relationship': fields.$4,
+      'speaking_style': fields.$5,
+      'boundaries': fields.$6,
+      // 保留原始提示词，供人格中心查看与后续编辑
+      'name': persona.personaId,
+      'systemPrompt': prompt,
+      'source': 'astrbot',
+    };
+  }
+
+  static (String, String, String, String, String, String) _splitPersonaPrompt(
+    String prompt,
+  ) {
+    if (prompt.isEmpty) return ('', '', '', '', '', '');
+    final sections = <String, List<String>>{};
+    String? current;
+    for (final line in prompt.split('\n')) {
+      final marker = _personaSectionOf(line.trim());
+      if (marker != null) {
+        current = marker;
+        final rest = line.split(RegExp('[:：]')).skip(1).join('：').trim();
+        if (rest.isNotEmpty) {
+          sections.putIfAbsent(current, () => []).add(rest);
+        }
+        continue;
+      }
+      if (current != null) {
+        sections.putIfAbsent(current, () => []).add(line);
+      }
+    }
+    String take(String key) =>
+        (sections[key] ?? const <String>[]).join('\n').trim();
+    final identity = take('identity');
+    if (sections.isEmpty) {
+      // 没有可识别的分段：整段放进「身份」，其余留空由用户补全
+      return (_truncateText(prompt, 600), '', '', '', '', '');
+    }
+    return (
+      identity,
+      take('personality'),
+      take('values'),
+      take('relationship'),
+      take('speakingStyle'),
+      take('boundaries'),
+    );
+  }
+
+  /// 判断一行是否是某个核心字段的小标题（仅识别短标题，避免把正文误判为标题）。
+  static String? _personaSectionOf(String line) {
+    if (line.isEmpty) return null;
+    final hasMarker = RegExp(r'^[#\-*\d]').hasMatch(line);
+    final hasColon = line.contains(':') || line.contains('：');
+    if (!hasMarker && !hasColon) return null;
+    final head = line
+        .split(RegExp('[:：]'))
+        .first
+        .replaceFirst(RegExp(r'^[#\-*\d.\s]+'), '')
+        .trim();
+    if (head.isEmpty || head.length > 16) return null;
+    if (head.contains('身份') || head.contains('角色')) return 'identity';
+    if (head.contains('性格')) return 'personality';
+    if (head.contains('价值') || head.contains('信念')) return 'values';
+    if (head.contains('关系')) return 'relationship';
+    if (head.contains('说话') || head.contains('语言') || head.contains('口头')) {
+      return 'speakingStyle';
+    }
+    if (head.contains('边界') || head.contains('底线') || head.contains('禁止')) {
+      return 'boundaries';
+    }
+    return null;
+  }
+
+  static String _truncateText(String text, int max) =>
+      text.length <= max ? text : '${text.substring(0, max)}…';
 
   static String _titleFrom(String content) {
     final cleaned = content.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -1014,11 +1105,7 @@ class AstrBotImportService {
         )
         .getSingle();
     final nextNo = (row.data['n'] as int? ?? 0) + 1;
-    final content = jsonEncode({
-      'name': persona.personaId,
-      'systemPrompt': persona.systemPrompt,
-      'source': 'astrbot',
-    });
+    final content = jsonEncode(_personaContentJson(persona));
     await _db
         .into(_db.personaVersions)
         .insert(
@@ -1143,11 +1230,7 @@ class AstrBotImportService {
   Future<void> _overwritePersonaVersion(AstrPersonaRow persona) async {
     await _repairProfileId();
     final versionId = _personaVersionId(persona.personaId);
-    final content = jsonEncode({
-      'name': persona.personaId,
-      'systemPrompt': persona.systemPrompt,
-      'source': 'astrbot',
-    });
+    final content = jsonEncode(_personaContentJson(persona));
     await (_db.update(
       _db.personaVersions,
     )..where((t) => t.id.equals(versionId))).write(
