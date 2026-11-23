@@ -37,7 +37,7 @@ class AstrBotImportService {
 
   // ------------------------------------------------------------ 预演
 
-  Future<MigrationDryRun> dryRun() async {
+  Future<MigrationDryRun> dryRun({bool overwrite = false}) async {
     if (!await source.available) {
       return MigrationDryRun.unavailable(source.rootPath);
     }
@@ -220,9 +220,24 @@ class AstrBotImportService {
       ),
     );
 
+    // 覆盖模式：已导入项也会按源更新，因此「可导入」= 全部有数据的项
+    final normalized = overwrite
+        ? [
+            for (final e in entries)
+              MigrationDryRunEntry(
+                category: e.category,
+                sourceCount: e.sourceCount,
+                importable: e.sourceCount,
+                skipped: 0,
+                needsManual: e.needsManual,
+                note: e.note,
+              ),
+          ]
+        : entries;
+
     return MigrationDryRun(
       sourceRoot: source.rootPath,
-      entries: entries,
+      entries: normalized,
       sourceAvailable: true,
       generatedAt: _nowIso(),
     );
@@ -257,6 +272,8 @@ class AstrBotImportService {
     }
 
     final existing = await _existingSourceRefs();
+    // 修复早期批次误建的主档案 id，避免人格中心读取失败
+    await _repairProfileId();
     final totalSteps = 9;
     var step = 0;
     void progress(String phase) {
@@ -267,7 +284,13 @@ class AstrBotImportService {
     // ① 聊天
     try {
       final messages = await _readableChatMessages();
-      final result = await _importChat(messages, batchId, recorder, existing);
+      final result = await _importChat(
+        messages,
+        batchId,
+        recorder,
+        existing,
+        overwrite: overwrite,
+      );
       imported[MigrationCategory.chat] = result.imported;
       skipped[MigrationCategory.chat] = result.skipped;
       failed += result.failed;
@@ -692,8 +715,9 @@ class AstrBotImportService {
     List<AstrChatMessage> messages,
     String batchId,
     _Recorder recorder,
-    Set<String> existing,
-  ) async {
+    Set<String> existing, {
+    bool overwrite = false,
+  }) async {
     var imported = 0;
     var skipped = 0;
     var failed = 0;
@@ -742,7 +766,40 @@ class AstrBotImportService {
       for (final m in list) {
         seq++;
         final ref = 'chat:<${m.sourceId}>';
+        final messageId = 'import_msg_${m.sourceId}';
         if (existing.contains(ref)) {
+          if (overwrite) {
+            try {
+              await _db
+                  .into(_db.messages)
+                  .insertOnConflictUpdate(
+                    MessagesCompanion(
+                      id: Value(messageId),
+                      conversationId: Value(targetConversationId),
+                      role: Value(m.role),
+                      seq: Value(seq),
+                      content: Value(m.content),
+                      status: const Value('sent'),
+                      createdAt: Value(_iso(m.createdAtMs)),
+                      updatedAt: Value(_iso(m.createdAtMs)),
+                      deletedAt: const Value(null),
+                    ),
+                  );
+              imported++;
+              recorder.add(
+                category: MigrationCategory.chat,
+                status: 'migrated',
+                sourceRef: ref,
+                targetTable: 'messages',
+                targetId: messageId,
+                notes: '覆盖更新',
+              );
+            } catch (e) {
+              failed++;
+              errors.add('消息 ${m.sourceId} 覆盖失败：$e');
+            }
+            continue;
+          }
           skipped++;
           recorder.add(
             category: MigrationCategory.chat,
@@ -752,7 +809,6 @@ class AstrBotImportService {
           );
           continue;
         }
-        final messageId = 'import_msg_${m.sourceId}';
         companions.add(
           MessagesCompanion.insert(
             id: messageId,
@@ -1002,15 +1058,14 @@ class AstrBotImportService {
             ..where((t) => t.id.equals(versionId)))
           .write(const PersonaVersionsCompanion(isActive: Value(1)));
     }
-    final profile = await (_db.select(
-      _db.personaProfiles,
-    )..limit(1)).getSingleOrNull();
+    await _repairProfileId();
+    final profile = await _loadProfileRow();
     if (profile == null) {
       await _db
           .into(_db.personaProfiles)
           .insert(
             PersonaProfilesCompanion.insert(
-              id: 'persona_main',
+              id: _profileId,
               name: Value(persona.personaId),
               intro: const Value('由 AstrBot 迁移导入'),
               coreSystemPrompt: Value(persona.systemPrompt),
@@ -1032,8 +1087,61 @@ class AstrBotImportService {
     }
   }
 
+  /// 正式主档案固定 id（与 PersonaRepository.profileId 一致）。
+  static const _profileId = 'persona_default';
+
+  /// 优先读取正式主档案；旧批次误建 persona_main 时由 [_repairProfileId] 迁移。
+  Future<PersonaProfile?> _loadProfileRow() async {
+    final primary =
+        await (_db.select(_db.personaProfiles)
+              ..where((t) => t.id.equals(_profileId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (primary != null) return primary;
+    return (_db.select(_db.personaProfiles)..limit(1)).getSingleOrNull();
+  }
+
+  /// 兼容早期版本误写的 persona_main：迁移为 persona_default，避免人格中心找不到主档案。
+  Future<void> _repairProfileId() async {
+    final legacy =
+        await (_db.select(_db.personaProfiles)
+              ..where((t) => t.id.equals('persona_main'))
+              ..limit(1))
+            .getSingleOrNull();
+    if (legacy == null) return;
+    final primary =
+        await (_db.select(_db.personaProfiles)
+              ..where((t) => t.id.equals(_profileId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (primary != null) {
+      await (_db.delete(
+        _db.personaProfiles,
+      )..where((t) => t.id.equals('persona_main'))).go();
+      return;
+    }
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.personaProfiles,
+      )..where((t) => t.id.equals('persona_main'))).go();
+      await _db
+          .into(_db.personaProfiles)
+          .insert(
+            PersonaProfilesCompanion.insert(
+              id: _profileId,
+              name: Value(legacy.name),
+              intro: Value(legacy.intro),
+              coreSystemPrompt: Value(legacy.coreSystemPrompt),
+              activeVersionId: Value(legacy.activeVersionId),
+              updatedAt: _nowIso(),
+            ),
+          );
+    });
+  }
+
   /// 覆盖模式下更新已导入的人格版本提示词；若该版本正生效则同步主档案快照。
   Future<void> _overwritePersonaVersion(AstrPersonaRow persona) async {
+    await _repairProfileId();
     final versionId = _personaVersionId(persona.personaId);
     final content = jsonEncode({
       'name': persona.personaId,
@@ -1048,9 +1156,7 @@ class AstrBotImportService {
         changeReason: const Value('AstrBot 迁移（覆盖更新）'),
       ),
     );
-    final profile = await (_db.select(
-      _db.personaProfiles,
-    )..limit(1)).getSingleOrNull();
+    final profile = await _loadProfileRow();
     if (profile != null && profile.activeVersionId == versionId) {
       await (_db.update(
         _db.personaProfiles,
@@ -1064,9 +1170,7 @@ class AstrBotImportService {
   }
 
   Future<bool> _hasActiveCorePersona() async {
-    final profile = await (_db.select(
-      _db.personaProfiles,
-    )..limit(1)).getSingleOrNull();
+    final profile = await _loadProfileRow();
     if (profile == null) return false;
     if (profile.activeVersionId == null || profile.activeVersionId!.isEmpty) {
       return false;
@@ -1730,10 +1834,12 @@ class AstrBotImportService {
   // ------------------------------------------------------------ 工具
 
   Future<Set<String>> _existingSourceRefs() async {
+    // 只认「已成功写入」的记录：skipped / failed / rolled_back 不应阻塞重试
     final rows = await _db
         .customSelect(
           'SELECT source_ref FROM migration_records '
-          'WHERE source = ? AND source_ref IS NOT NULL',
+          "WHERE source = ? AND source_ref IS NOT NULL "
+          "AND status IN ('migrated', 'verified')",
           variables: [Variable.withString(sourceName)],
         )
         .get();

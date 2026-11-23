@@ -336,7 +336,7 @@ void main() {
     customSource.dispose();
   });
 
-  test('覆盖模式会用源数据更新已导入内容（聊天消息不覆盖）', () async {
+  test('覆盖模式会用源数据更新已导入内容（含聊天消息）', () async {
     await writeFile('data/plugin_data/astrbot_plugin_qzone/posts_5.db', '');
     final customSource = AstrBotSource(
       rootPath: root.path,
@@ -363,12 +363,20 @@ void main() {
     };
     expect(beforeMessages, isNotEmpty);
 
+    // 覆盖模式下预演应显示聊天可导入（而不是全部归为 0）
+    final overwriteDryRun = await custom.dryRun(overwrite: true);
+    expect(
+      overwriteDryRun.importableOf(MigrationCategory.chat),
+      beforeMessages.length,
+    );
+
     final second = await custom.run(
       createPreMigrationBackup: false,
       overwrite: true,
     );
     expect(second.imported[MigrationCategory.post], 2);
     expect(second.imported[MigrationCategory.diary], 2);
+    expect(second.imported[MigrationCategory.chat], beforeMessages.length);
 
     final post = (await db.select(db.posts).get()).firstWhere(
       (p) => p.id == 'import_post_t1',
@@ -379,11 +387,11 @@ void main() {
     );
     expect(diary.content, '库里的日记');
 
-    // 聊天消息不参与覆盖：二次导入后与首次完全一致
+    // 覆盖更新聊天消息但不产生重复行
     final afterMessages = {
       for (final m in await db.select(db.messages).get()) m.id: m.content,
     };
-    expect(afterMessages, beforeMessages);
+    expect(afterMessages.keys.toSet(), beforeMessages.keys.toSet());
 
     customSource.dispose();
   });

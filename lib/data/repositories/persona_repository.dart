@@ -73,14 +73,18 @@ class PersonaRepository {
         initial: true,
         createdAt: now,
       );
-      await _db.into(_db.personaProfiles).insert(PersonaProfilesCompanion.insert(
-            id: profileId,
-            name: const Value('泡泡'),
-            intro: const Value('正在学着更懂你一点。'),
-            activeVersionId: Value(coreVersion.id),
-            interests: const Value('[]'),
-            updatedAt: now,
-          ));
+      await _db
+          .into(_db.personaProfiles)
+          .insert(
+            PersonaProfilesCompanion.insert(
+              id: profileId,
+              name: const Value('泡泡'),
+              intro: const Value('正在学着更懂你一点。'),
+              activeVersionId: Value(coreVersion.id),
+              interests: const Value('[]'),
+              updatedAt: now,
+            ),
+          );
     });
     await rebuildPromptSnapshot();
   }
@@ -89,9 +93,42 @@ class PersonaRepository {
 
   Future<PersonaProfile> profile() async {
     await ensureSeed();
-    return (_db.select(_db.personaProfiles)
-          ..where((t) => t.id.equals(profileId)))
-        .getSingle();
+    final row =
+        await (_db.select(_db.personaProfiles)
+              ..where((t) => t.id.equals(profileId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (row != null) return row;
+    // 兜底：历史迁移可能写入了非标准 id，就地迁移为主档案 id，避免整页加载失败
+    final any = await (_db.select(
+      _db.personaProfiles,
+    )..limit(1)).getSingleOrNull();
+    if (any == null) {
+      await ensureSeed();
+      return (_db.select(
+        _db.personaProfiles,
+      )..where((t) => t.id.equals(profileId))).getSingle();
+    }
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.personaProfiles,
+      )..where((t) => t.id.equals(any.id))).go();
+      await _db
+          .into(_db.personaProfiles)
+          .insert(
+            PersonaProfilesCompanion.insert(
+              id: profileId,
+              name: Value(any.name),
+              intro: Value(any.intro),
+              coreSystemPrompt: Value(any.coreSystemPrompt),
+              activeVersionId: Value(any.activeVersionId),
+              updatedAt: _nowIso(),
+            ),
+          );
+    });
+    return (_db.select(
+      _db.personaProfiles,
+    )..where((t) => t.id.equals(profileId))).getSingle();
   }
 
   Future<List<PersonaVersion>> versions({String? layer}) {
@@ -103,9 +140,9 @@ class PersonaRepository {
     return query.get();
   }
 
-  Future<PersonaVersion?> getVersion(String id) =>
-      (_db.select(_db.personaVersions)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+  Future<PersonaVersion?> getVersion(String id) => (_db.select(
+    _db.personaVersions,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
 
   Future<PersonaVersion?> activeVersion(String layer) =>
       (_db.select(_db.personaVersions)
@@ -138,14 +175,13 @@ class PersonaRepository {
     return row.read(_db.personaGrowthRecords.id.count()) ?? 0;
   }
 
-  Future<List<PersonaGrowthRecord>> growthRecords() =>
-      (_db.select(_db.personaGrowthRecords)
-            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-          .get();
+  Future<List<PersonaGrowthRecord>> growthRecords() => (_db.select(
+    _db.personaGrowthRecords,
+  )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
 
-  Future<PersonaGrowthRecord?> getGrowthRecord(String id) =>
-      (_db.select(_db.personaGrowthRecords)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+  Future<PersonaGrowthRecord?> getGrowthRecord(String id) => (_db.select(
+    _db.personaGrowthRecords,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
 
   /// 人格中心聚合快照
   Future<PersonaSnapshot> loadSnapshot() async {
@@ -225,9 +261,12 @@ class PersonaRepository {
     String? relatedExperienceId,
     String? relatedMemoryIds,
   }) async {
-    final active = await activeVersion('growth') ?? await _ensureGrowthBaseline();
+    final active =
+        await activeVersion('growth') ?? await _ensureGrowthBaseline();
     final id = _uuid.v4();
-    await _db.into(_db.personaGrowthRecords).insert(
+    await _db
+        .into(_db.personaGrowthRecords)
+        .insert(
           PersonaGrowthRecordsCompanion.insert(
             id: id,
             versionId: active.id,
@@ -265,14 +304,16 @@ class PersonaRepository {
         reason: '接受成长建议：${record.growthType}',
         userConfirmed: true,
       );
-      await (_db.update(_db.personaGrowthRecords)
-            ..where((t) => t.id.equals(recordId)))
-          .write(PersonaGrowthRecordsCompanion(
-        versionId: Value(created.id),
-        afterValue: Value(after),
-        status: const Value('confirmed'),
-        confirmedAt: Value(_nowIso()),
-      ));
+      await (_db.update(
+        _db.personaGrowthRecords,
+      )..where((t) => t.id.equals(recordId))).write(
+        PersonaGrowthRecordsCompanion(
+          versionId: Value(created.id),
+          afterValue: Value(after),
+          status: const Value('confirmed'),
+          confirmedAt: Value(_nowIso()),
+        ),
+      );
     });
     await rebuildPromptSnapshot();
     return created;
@@ -283,12 +324,14 @@ class PersonaRepository {
     final record = await getGrowthRecord(recordId);
     if (record == null) throw StateError('成长记录不存在：$recordId');
     if (record.status != 'proposed') return;
-    await (_db.update(_db.personaGrowthRecords)
-          ..where((t) => t.id.equals(recordId)))
-        .write(PersonaGrowthRecordsCompanion(
-      status: const Value('reverted'),
-      confirmedAt: Value(_nowIso()),
-    ));
+    await (_db.update(
+      _db.personaGrowthRecords,
+    )..where((t) => t.id.equals(recordId))).write(
+      PersonaGrowthRecordsCompanion(
+        status: const Value('reverted'),
+        confirmedAt: Value(_nowIso()),
+      ),
+    );
   }
 
   // ------------------------------------------------------------ 表达样本
@@ -314,14 +357,18 @@ class PersonaRepository {
     final text = content.trim();
     if (text.isEmpty) throw ArgumentError('表达样本不能为空');
     final id = _uuid.v4();
-    await _db.into(_db.expressionSamples).insert(ExpressionSamplesCompanion.insert(
-          id: id,
-          content: text,
-          contextNote: Value(contextNote),
-          pinned: Value(pinned ? 1 : 0),
-          relatedMessageId: Value(relatedMessageId),
-          createdAt: _nowIso(),
-        ));
+    await _db
+        .into(_db.expressionSamples)
+        .insert(
+          ExpressionSamplesCompanion.insert(
+            id: id,
+            content: text,
+            contextNote: Value(contextNote),
+            pinned: Value(pinned ? 1 : 0),
+            relatedMessageId: Value(relatedMessageId),
+            createdAt: _nowIso(),
+          ),
+        );
     await rebuildPromptSnapshot();
     return id;
   }
@@ -341,14 +388,17 @@ class PersonaRepository {
 
   /// 最近可沉淀为样本的助手回复（已发送、未删除、非空）
   Future<List<Message>> recentAssistantMessages({int limit = 20}) async {
-    final rows = await (_db.select(_db.messages)
-          ..where((t) =>
-              t.role.equals('assistant') &
-              t.status.equals('sent') &
-              t.deletedAt.isNull())
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
-          ..limit(limit))
-        .get();
+    final rows =
+        await (_db.select(_db.messages)
+              ..where(
+                (t) =>
+                    t.role.equals('assistant') &
+                    t.status.equals('sent') &
+                    t.deletedAt.isNull(),
+              )
+              ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+              ..limit(limit))
+            .get();
     return rows.where((m) => m.content.trim().isNotEmpty).toList();
   }
 
@@ -369,12 +419,14 @@ class PersonaRepository {
       growth: growth,
       samples: samples,
     );
-    await (_db.update(_db.personaProfiles)
-          ..where((t) => t.id.equals(profileId)))
-        .write(PersonaProfilesCompanion(
-      coreSystemPrompt: Value(prompt),
-      updatedAt: Value(_nowIso()),
-    ));
+    await (_db.update(
+      _db.personaProfiles,
+    )..where((t) => t.id.equals(profileId))).write(
+      PersonaProfilesCompanion(
+        coreSystemPrompt: Value(prompt),
+        updatedAt: Value(_nowIso()),
+      ),
+    );
     return prompt;
   }
 
@@ -395,10 +447,11 @@ class PersonaRepository {
         throw StateError('核心人格只能由用户确认后写入');
       }
     }
-    final latest = await (_db.select(_db.personaVersions)
-          ..orderBy([(t) => OrderingTerm.desc(t.versionNo)])
-          ..limit(1))
-        .getSingleOrNull();
+    final latest =
+        await (_db.select(_db.personaVersions)
+              ..orderBy([(t) => OrderingTerm.desc(t.versionNo)])
+              ..limit(1))
+            .getSingleOrNull();
     final nextNo = (latest?.versionNo ?? 0) + 1;
     final id = _uuid.v4();
     final now = createdAt ?? _nowIso();
@@ -407,23 +460,29 @@ class PersonaRepository {
       variables: [Variable(layer)],
       updates: {_db.personaVersions},
     );
-    await _db.into(_db.personaVersions).insert(PersonaVersionsCompanion.insert(
-          id: id,
-          versionNo: nextNo,
-          layer: layer,
-          content: content,
-          changeReason: Value(reason),
-          confirmedBy: Value(confirmedBy),
-          isActive: const Value(1),
-          createdAt: now,
-        ));
+    await _db
+        .into(_db.personaVersions)
+        .insert(
+          PersonaVersionsCompanion.insert(
+            id: id,
+            versionNo: nextNo,
+            layer: layer,
+            content: content,
+            changeReason: Value(reason),
+            confirmedBy: Value(confirmedBy),
+            isActive: const Value(1),
+            createdAt: now,
+          ),
+        );
     if (layer == 'core') {
-      await (_db.update(_db.personaProfiles)
-            ..where((t) => t.id.equals(profileId)))
-          .write(PersonaProfilesCompanion(
-        activeVersionId: Value(id),
-        updatedAt: Value(now),
-      ));
+      await (_db.update(
+        _db.personaProfiles,
+      )..where((t) => t.id.equals(profileId))).write(
+        PersonaProfilesCompanion(
+          activeVersionId: Value(id),
+          updatedAt: Value(now),
+        ),
+      );
     }
     return PersonaVersion(
       id: id,

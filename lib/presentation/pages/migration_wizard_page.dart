@@ -118,7 +118,7 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
     String? error;
     try {
       _service = null;
-      dryRun = await _ensureService().dryRun();
+      dryRun = await _ensureService().dryRun(overwrite: _overwrite);
     } catch (e) {
       error = '$e';
     }
@@ -356,8 +356,8 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
                   : (value) => setState(() => _overwrite = value),
               title: const Text('覆盖此前导入的同源内容'),
               subtitle: Text(
-                '开启后，重复导入会更新已存在的说说 / 日记 / 信件 / 记忆 / 人格提示词；'
-                '你手写的日记与聊天消息不会被改写。关闭则只补缺失项。',
+                '开启后，重复导入会按源内容更新已存在的聊天消息 / 说说 / 日记 / 信件 / 记忆 / 人格提示词；'
+                '你手写的日记不会被改写。关闭则只补缺失项。',
                 style: TextStyle(
                   fontSize: BubbleFontSize.badge,
                   height: 1.4,

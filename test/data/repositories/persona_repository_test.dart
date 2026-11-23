@@ -15,6 +15,32 @@ Future<PersonaRepository> _newRepo() async {
 }
 
 void main() {
+  group('主档案兼容', () {
+    test('历史误写 persona_main 时自动迁移为 persona_default', () async {
+      final db = AppDatabase(openInMemoryDatabase());
+      addTearDown(db.close);
+      await db
+          .into(db.personaProfiles)
+          .insert(
+            PersonaProfilesCompanion.insert(
+              id: 'persona_main',
+              name: const Value('鲸鱼娘'),
+              coreSystemPrompt: const Value('你是鲸鱼娘'),
+              updatedAt: '2026-11-20T00:00:00.000Z',
+            ),
+          );
+      final repo = PersonaRepository(db);
+
+      final profile = await repo.profile();
+
+      expect(profile.id, 'persona_default');
+      expect(profile.coreSystemPrompt, '你是鲸鱼娘');
+      final all = await db.select(db.personaProfiles).get();
+      expect(all.length, 1);
+      expect(all.single.id, 'persona_default');
+    });
+  });
+
   group('初始化', () {
     test('首次建库生成单行档案、core v1(init) 与快照', () async {
       final db = AppDatabase(openInMemoryDatabase());
@@ -50,10 +76,7 @@ void main() {
       final before = (await repo.versions()).length;
       final edited = (await repo.coreFields()).copyWith(personality: '被模型偷偷改掉');
 
-      await expectLater(
-        repo.saveCore(edited),
-        throwsA(isA<StateError>()),
-      );
+      await expectLater(repo.saveCore(edited), throwsA(isA<StateError>()));
       expect((await repo.versions()).length, before);
       expect((await repo.coreFields()).personality, isNot('被模型偷偷改掉'));
     });
@@ -101,14 +124,18 @@ void main() {
         reason: '你希望我这样叫你',
       );
       expect(await repo.pendingGrowthCount(), 1);
-      expect((await repo.versions()).length,
-          coreCountBefore + growthCountBefore);
+      expect(
+        (await repo.versions()).length,
+        coreCountBefore + growthCountBefore,
+      );
 
       final version = await repo.acceptGrowth(id);
       expect(version.layer, 'growth');
       expect(version.versionNo, greaterThan(1));
-      expect((await repo.versions(layer: 'growth')).length,
-          growthCountBefore + 1);
+      expect(
+        (await repo.versions(layer: 'growth')).length,
+        growthCountBefore + 1,
+      );
       // 核心层完全不受影响
       expect((await repo.versions(layer: 'core')).length, coreCountBefore);
       expect((await repo.growthValues()).valueOf('称呼'), '阿岚');
@@ -200,27 +227,35 @@ void main() {
           .createConversation(title: '样本来源');
 
       final now = DateTime.now().toUtc().toIso8601String();
-      await db.into(db.messages).insert(MessagesCompanion.insert(
-            id: 'm_sample_1',
-            conversationId: conversation.id,
-            role: 'assistant',
-            seq: 1,
-            content: '今天的云很好看。',
-            status: 'sent',
-            createdAt: now,
-            updatedAt: now,
-          ));
-      await db.into(db.messages).insert(MessagesCompanion.insert(
-            id: 'm_sample_2',
-            conversationId: conversation.id,
-            role: 'assistant',
-            seq: 2,
-            content: '已删除的旧回复',
-            status: 'deleted',
-            deletedAt: Value(now),
-            createdAt: now,
-            updatedAt: now,
-          ));
+      await db
+          .into(db.messages)
+          .insert(
+            MessagesCompanion.insert(
+              id: 'm_sample_1',
+              conversationId: conversation.id,
+              role: 'assistant',
+              seq: 1,
+              content: '今天的云很好看。',
+              status: 'sent',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+      await db
+          .into(db.messages)
+          .insert(
+            MessagesCompanion.insert(
+              id: 'm_sample_2',
+              conversationId: conversation.id,
+              role: 'assistant',
+              seq: 2,
+              content: '已删除的旧回复',
+              status: 'deleted',
+              deletedAt: Value(now),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
 
       final recent = await repo.recentAssistantMessages();
       expect(recent.map((m) => m.id), contains('m_sample_1'));
