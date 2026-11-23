@@ -8,6 +8,7 @@ enum MigrationCategory {
   persona('persona', '人格提示词'),
   relation('relation', '关系设定'),
   memory('memory', '长期记忆'),
+  post('post', '说说'),
   diary('diary', '日记'),
   letter('letter', '信件'),
   bookNote('book_note', '读书笔记'),

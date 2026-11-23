@@ -1,12 +1,14 @@
 // 迁移与导入向导页（T14.6）：五步（备份/预演/导入/对账/验证）+ 回滚。
 // 依据 UI_PAGE_SPEC §26、MIGRATION_PLAN §2/§3；源只读、API Key 不迁移、失败如实报告。
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/database/db_provider.dart';
 import '../../data/migration/astrbot_import_service.dart';
 import '../../data/migration/astrbot_source.dart';
 import '../../data/migration/migration_source_picker.dart';
 import '../../domain/migration/migration_models.dart';
+import '../app/router.dart';
 import '../theme/bubble_colors.dart';
 import '../widgets/memory/memory_common.dart';
 
@@ -444,6 +446,28 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
                           color: semantic.warnDeep,
                         ),
                       ),
+                      if ((batch.needsManual[MigrationCategory.persona] ?? 0) >
+                          0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '人格已导入为「未激活版本」，不会覆盖你现有的核心人格。'
+                          '前往人格中心 → 版本历史，点「恢复此版本」即可生效。',
+                          style: TextStyle(
+                            fontSize: BubbleFontSize.badge,
+                            height: 1.5,
+                            color: Theme.of(context).colorScheme.onSurface
+                                .withValues(alpha: 0.55),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            key: const Key('migration-go-persona'),
+                            onPressed: () => context.go(AppRoutes.persona),
+                            child: const Text('去人格中心'),
+                          ),
+                        ),
+                      ],
                     ],
                     if (batch.errors.isNotEmpty) ...[
                       const SizedBox(height: 6),

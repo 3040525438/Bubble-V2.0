@@ -80,6 +80,41 @@ class FakeReadOnlySql implements ReadOnlySql {
   void close() {}
 }
 
+/// 在基础假源上补充：库内日记（与 md 同日期/不同日期）与 qzone 说说。
+class DiaryAndPostsFakeSql extends FakeReadOnlySql {
+  @override
+  List<Map<String, Object?>> query(String dbPath, String sql) {
+    if (dbPath.endsWith('memory.db')) {
+      return [
+        {'id': 1, 'kind': 'diary', 'day': '2026-10-23', 'text': '库里的日记'},
+        {
+          'id': 2,
+          'kind': 'diary',
+          'day': '2026-10-24',
+          'text': '同日期库版本（应被 md 覆盖）',
+        },
+      ];
+    }
+    if (sql.contains('FROM posts')) {
+      return [
+        {
+          'tid': 't1',
+          'text': '今天趴窗边看雨',
+          'create_time': 1792765922,
+          'images': '[]',
+        },
+        {
+          'tid': 't2',
+          'text': '白米饭真好吃',
+          'create_time': 1792766462,
+          'images': '["https://example.com/1.jpg","https://example.com/2.jpg"]',
+        },
+      ];
+    }
+    return super.query(dbPath, sql);
+  }
+}
+
 void main() {
   late AppDatabase db;
   late Directory root;
@@ -252,5 +287,51 @@ void main() {
 
     final logs = await db.select(db.journalLogs).get();
     expect(logs.any((l) => l.op == 'rollback'), isTrue);
+  });
+
+  test('说说与库内日记导入，无核心人格时直接生效', () async {
+    await writeFile('data/plugin_data/astrbot_plugin_qzone/posts_5.db', '');
+    final customSource = AstrBotSource(
+      rootPath: root.path,
+      sql: DiaryAndPostsFakeSql(),
+    );
+    final custom = AstrBotImportService(
+      db,
+      source: customSource,
+      clock: () => DateTime.utc(2026, 11, 20, 9, 30),
+    );
+
+    final dryRun = await custom.dryRun();
+    expect(dryRun.importableOf(MigrationCategory.post), 2);
+
+    final batch = await custom.run(createPreMigrationBackup: false);
+    expect(batch.failed, 0);
+    expect(batch.imported[MigrationCategory.post], 2);
+
+    final posts = await db.select(db.posts).get();
+    expect(posts, hasLength(2));
+    expect(posts.any((p) => p.content.contains('白米饭')), isTrue);
+    expect(posts.every((p) => p.publishedAt > 0), isTrue);
+    expect(posts.every((p) => p.origin == 'autonomous'), isTrue);
+
+    // 库内日记 10-23 + md 覆盖同日的 10-24 → 共 2 篇，且 md 内容优先
+    final diaries = await db.select(db.diaries).get();
+    expect(diaries.map((d) => d.entryDate).toSet(), {
+      '2026-10-23',
+      '2026-10-24',
+    });
+    expect(
+      diaries.firstWhere((d) => d.entryDate == '2026-10-24').content,
+      contains('今天很开心'),
+    );
+
+    // 无既有核心人格：迁移版本应直接激活并回填主档案
+    final profile = (await db.select(db.personaProfiles).get()).single;
+    expect(profile.activeVersionId, isNotNull);
+    expect(profile.coreSystemPrompt, contains('鲸鱼娘'));
+    final versions = await db.select(db.personaVersions).get();
+    expect(versions.single.isActive, 1);
+
+    customSource.dispose();
   });
 }

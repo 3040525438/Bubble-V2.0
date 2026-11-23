@@ -105,6 +105,25 @@ class AstrTextDoc {
   final String? date;
 }
 
+/// 说说（astrbot_plugin_qzone/posts_*.db 的 posts 表，仅 approved）。
+class AstrPostRow {
+  const AstrPostRow({
+    required this.tid,
+    required this.content,
+    required this.createdAtMs,
+    this.imageCount = 0,
+  });
+
+  final String tid;
+  final String content;
+
+  /// 源 create_time（秒）转毫秒
+  final int createdAtMs;
+
+  /// 外链图片数量（源图片存 QQ 空间 URL，不下载，仅如实计数）
+  final int imageCount;
+}
+
 /// 伴侣记忆条目（companions.json）。
 class AstrCompanionMemoryItem {
   const AstrCompanionMemoryItem({
@@ -156,6 +175,8 @@ class AstrBotSource {
   String get diaryDirPath => '$rootPath${_sep}diary';
   String get lettersDirPath => '$rootPath${_sep}letters';
   String get booksDirPath => '$rootPath${_sep}books${_sep}notes';
+  String get qzoneDirPath =>
+      '$rootPath${_sep}data${_sep}plugin_data${_sep}astrbot_plugin_qzone';
 
   /// 源根目录是否存在（不存在时向导明确提示「源不可读」，不假装有数据）。
   Future<bool> get available async => Directory(rootPath).exists();
@@ -228,8 +249,69 @@ class AstrBotSource {
     ];
   }
 
-  /// 日记文件（yyyy-MM-dd.md；排除 FACTS.md/INDEX.md 与 txt 子目录）。
-  Future<List<AstrTextDoc>> diaries() => _readDateFiles(diaryDirPath);
+  /// 日记：以 `diary/memory.db` 的 kind='diary' 为主，辅以 `diary/yyyy-MM-dd.md`；
+  /// 同日期时 Markdown 文件优先（通常是人工整理版）。旧实现只读 md，会漏掉只存库的日记。
+  Future<List<AstrTextDoc>> diaries() async {
+    final byDate = <String, AstrTextDoc>{};
+    for (final memory in await memories()) {
+      if (memory.kind != 'diary') continue;
+      final date = _dateKey(memory.day);
+      final content = memory.text.trim();
+      if (date == null || content.isEmpty) continue;
+      byDate[date] = AstrTextDoc(
+        name: 'memory_diary_${memory.id}.md',
+        content: content,
+        sha256: _sha256Text(content),
+        date: date,
+      );
+    }
+    for (final doc in await _readDateFiles(diaryDirPath)) {
+      final date = doc.date;
+      if (date == null) continue;
+      byDate[date] = doc;
+    }
+    return byDate.values.toList()
+      ..sort((a, b) => (a.date ?? '').compareTo(b.date ?? ''));
+  }
+
+  /// 说说：读取 qzone 插件的 `posts_*.db`，只取 approved；图片为外链，仅计数。
+  Future<List<AstrPostRow>> posts() async {
+    final dir = Directory(qzoneDirPath);
+    if (!await dir.exists()) return const [];
+    final dbs = <File>[];
+    final pattern = RegExp(r'^posts_\d+\.db$');
+    await for (final entity in dir.list(followLinks: false)) {
+      if (entity is File && pattern.hasMatch(_baseName(entity.path))) {
+        dbs.add(entity);
+      }
+    }
+    if (dbs.isEmpty) return const [];
+    dbs.sort((a, b) => a.path.compareTo(b.path));
+
+    final out = <AstrPostRow>[];
+    for (final db in dbs) {
+      final rows = _sql.query(
+        db.path,
+        "SELECT tid, text, create_time, images FROM posts "
+        "WHERE status = 'approved' ORDER BY create_time, id",
+      );
+      for (final row in rows) {
+        final tid = row['tid']?.toString().trim() ?? '';
+        final content = row['text']?.toString().trim() ?? '';
+        if (tid.isEmpty || content.isEmpty) continue;
+        out.add(
+          AstrPostRow(
+            tid: tid,
+            content: content,
+            createdAtMs: (_asInt(row['create_time']) ?? 0) * 1000,
+            imageCount: _jsonArrayLength(row['images']),
+          ),
+        );
+      }
+    }
+    out.sort((a, b) => a.createdAtMs.compareTo(b.createdAtMs));
+    return out;
+  }
 
   /// 信件文件（letters/*.md；排除 INDEX）。去重由导入侧按内容 sha256 处理。
   Future<List<AstrTextDoc>> letters() => _readPlainMarkdown(lettersDirPath);
@@ -359,4 +441,29 @@ class AstrBotSource {
 
   static String _sha256Text(String text) =>
       sha256.convert(utf8.encode(text)).toString();
+
+  /// 归一化日期为 yyyy-MM-dd（兼容 `2026-10-24`、`2026-10-24 08:00:00`）。
+  static String? _dateKey(String? raw) {
+    final text = raw?.trim() ?? '';
+    if (text.isEmpty) return null;
+    final parsed = DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    if (parsed == null) {
+      return RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text) ? text : null;
+    }
+    final month = parsed.month.toString().padLeft(2, '0');
+    final day = parsed.day.toString().padLeft(2, '0');
+    return '${parsed.year}-$month-$day';
+  }
+
+  /// JSON 数组长度（images/videos 字段），非法 JSON 返回 0。
+  static int _jsonArrayLength(Object? raw) {
+    final text = raw?.toString() ?? '';
+    if (text.isEmpty) return 0;
+    try {
+      final decoded = jsonDecode(text);
+      return decoded is List ? decoded.length : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 }

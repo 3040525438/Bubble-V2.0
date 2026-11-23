@@ -88,7 +88,7 @@ class AstrBotImportService {
         sourceCount: personas.length,
         importable: personaImportable,
         needsManual: hasCore ? personaImportable : 0,
-        note: hasCore ? '已存在核心人格：导入为未激活版本，需人工选择' : '导入为核心人格来源版本',
+        note: hasCore ? '已存在核心人格：导入为未激活版本，需人工选择' : '无核心人格：导入并直接生效',
       ),
     );
 
@@ -112,6 +112,21 @@ class AstrBotImportService {
         importable: relationImportable,
         skipped: relationTotal - relationImportable,
         note: '关系摘要 1 条 + 伴侣记忆条目',
+      ),
+    );
+
+    // 说说（qzone 插件）
+    final posts = await source.posts();
+    final postImportable = posts
+        .where((p) => !existing.contains('post:<${p.tid}>'))
+        .length;
+    entries.add(
+      MigrationDryRunEntry(
+        category: MigrationCategory.post,
+        sourceCount: posts.length,
+        importable: postImportable,
+        skipped: posts.length - postImportable,
+        note: '来自 qzone 插件（仅 approved）；外链图片不下载，仅如实计数',
       ),
     );
 
@@ -282,6 +297,10 @@ class AstrBotImportService {
       for (final persona in personas) {
         final ref = 'persona:<${persona.personaId}>';
         if (existing.contains(ref)) {
+          if (!hasCore) {
+            // 旧批次可能「已导入但未激活」：无核心人格时补一次激活（幂等）
+            await _activateImportedPersona(persona);
+          }
           bump(skipped, MigrationCategory.persona);
           recorder.add(
             category: MigrationCategory.persona,
@@ -335,7 +354,21 @@ class AstrBotImportService {
     }
     progress('关系设定');
 
-    // ⑤ 日记
+    // ⑤ 说说（qzone 插件 posts_*.db）
+    try {
+      final posts = await source.posts();
+      final result = await _importPosts(posts, recorder, existing);
+      imported[MigrationCategory.post] = result.imported;
+      skipped[MigrationCategory.post] = result.skipped;
+      failed += result.failed;
+      errors.addAll(result.errors);
+    } catch (e) {
+      failed++;
+      errors.add('说说导入失败：$e');
+    }
+    progress('说说');
+
+    // ⑥ 日记
     try {
       final diaries = await source.diaries();
       final result = await _importDiaries(diaries, recorder, existing);
@@ -349,7 +382,7 @@ class AstrBotImportService {
     }
     progress('日记');
 
-    // ⑥ 信件
+    // ⑦ 信件
     try {
       final letters = await source.letters();
       final result = await _importLetters(letters, recorder, existing);
@@ -363,7 +396,7 @@ class AstrBotImportService {
     }
     progress('信件');
 
-    // ⑦ 读书笔记
+    // ⑧ 读书笔记
     try {
       final books = await source.bookNotes();
       final result = await _importBooks(books, recorder, existing);
@@ -377,7 +410,7 @@ class AstrBotImportService {
     }
     progress('读书笔记');
 
-    // ⑧ 如实记录未迁移的源（附件/经历/配置/插件资料）
+    // ⑨ 如实记录未迁移的源（附件/经历/配置/插件资料）
     final mediaCount = await source.mediaArchiveCount();
     if (mediaCount > 0) {
       skipped[MigrationCategory.attachment] = mediaCount;
@@ -408,7 +441,7 @@ class AstrBotImportService {
     );
     progress('附件与配置');
 
-    // ⑨ 落库迁移记录
+    // ⑩ 落库迁移记录
     await recorder.flush(_db);
     progress('迁移记录');
 
@@ -883,23 +916,54 @@ class AstrBotImportService {
           mode: InsertMode.insertOrIgnore,
         );
     if (!hasCore) {
-      // 无既有核心人格时，将迁移人格作为主档案来源（仍需用户在人格中心确认启用）
-      final existingProfile = await (_db.select(
+      // 无既有核心人格：迁移版本直接生效并回填主档案，
+      // 否则人格中心仍显示空/默认内容，用户会以为「没导入」。
+      await _activateImportedPersona(persona);
+    }
+  }
+
+  /// 把已导入的人格版本设为生效版本并回填主档案（仅用于「无核心人格」场景）。
+  /// 幂等：重复导入时会自愈旧批次「已导入但未激活」的情况。
+  Future<void> _activateImportedPersona(AstrPersonaRow persona) async {
+    final versionId = _personaVersionId(persona.personaId);
+    final version =
+        await (_db.select(_db.personaVersions)
+              ..where((t) => t.id.equals(versionId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (version == null) return;
+    if (version.isActive != 1) {
+      await (_db.update(_db.personaVersions)
+            ..where((t) => t.id.equals(versionId)))
+          .write(const PersonaVersionsCompanion(isActive: Value(1)));
+    }
+    final profile = await (_db.select(
+      _db.personaProfiles,
+    )..limit(1)).getSingleOrNull();
+    if (profile == null) {
+      await _db
+          .into(_db.personaProfiles)
+          .insert(
+            PersonaProfilesCompanion.insert(
+              id: 'persona_main',
+              name: Value(persona.personaId),
+              intro: const Value('由 AstrBot 迁移导入'),
+              coreSystemPrompt: Value(persona.systemPrompt),
+              activeVersionId: Value(versionId),
+              updatedAt: _nowIso(),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+    } else if (profile.activeVersionId != versionId) {
+      await (_db.update(
         _db.personaProfiles,
-      )..limit(1)).getSingleOrNull();
-      if (existingProfile == null) {
-        await _db
-            .into(_db.personaProfiles)
-            .insert(
-              PersonaProfilesCompanion.insert(
-                id: 'persona_main',
-                name: Value(persona.personaId),
-                intro: const Value('由 AstrBot 迁移导入'),
-                updatedAt: _nowIso(),
-              ),
-              mode: InsertMode.insertOrIgnore,
-            );
-      }
+      )..where((t) => t.id.equals(profile.id))).write(
+        PersonaProfilesCompanion(
+          activeVersionId: Value(versionId),
+          coreSystemPrompt: Value(persona.systemPrompt),
+          updatedAt: Value(_nowIso()),
+        ),
+      );
     }
   }
 
@@ -1054,6 +1118,66 @@ class AstrBotImportService {
       for (final row in rows)
         if (row.data['entry_date'] != null) row.data['entry_date']! as String,
     };
+  }
+
+  /// 说说导入：按 tid 幂等；外链图片不下载，写入记录里如实标注。
+  Future<({int imported, int skipped, int failed, List<String> errors})>
+  _importPosts(
+    List<AstrPostRow> rows,
+    _Recorder recorder,
+    Set<String> existing,
+  ) async {
+    var imported = 0;
+    var skipped = 0;
+    var failed = 0;
+    final errors = <String>[];
+    for (final post in rows) {
+      final ref = 'post:<${post.tid}>';
+      if (existing.contains(ref)) {
+        skipped++;
+        recorder.add(
+          category: MigrationCategory.post,
+          status: 'skipped',
+          sourceRef: ref,
+          notes: '已导入，幂等跳过',
+        );
+        continue;
+      }
+      final id = 'import_post_${_sanitize(post.tid)}';
+      try {
+        await _db
+            .into(_db.posts)
+            .insert(
+              PostsCompanion.insert(
+                id: id,
+                content: post.content,
+                origin: const Value('autonomous'),
+                publishedAt: post.createdAtMs > 0
+                    ? post.createdAtMs
+                    : DateTime.now().millisecondsSinceEpoch,
+              ),
+              mode: InsertMode.insertOrIgnore,
+            );
+        imported++;
+        recorder.add(
+          category: MigrationCategory.post,
+          status: 'migrated',
+          sourceRef: ref,
+          targetTable: 'posts',
+          targetId: id,
+          notes: post.imageCount > 0 ? '外链图片 ${post.imageCount} 张未下载' : null,
+        );
+      } catch (e) {
+        failed++;
+        errors.add('说说 ${post.tid} 写入失败：$e');
+      }
+    }
+    return (
+      imported: imported,
+      skipped: skipped,
+      failed: failed,
+      errors: errors,
+    );
   }
 
   Future<({int imported, int skipped, int failed, List<String> errors})>
