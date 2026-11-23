@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../data/database/db_provider.dart';
 import '../../data/migration/astrbot_import_service.dart';
 import '../../data/migration/astrbot_source.dart';
+import '../../data/migration/migration_source_picker.dart';
 import '../../domain/migration/migration_models.dart';
 import '../theme/bubble_colors.dart';
 import '../widgets/memory/memory_common.dart';
@@ -13,11 +14,15 @@ class MigrationWizardPage extends StatefulWidget {
   const MigrationWizardPage({
     super.key,
     this.serviceFactory,
+    this.picker,
     this.initialSourcePath = '',
   });
 
   /// 测试注入：按源路径创建导入服务。
   final AstrBotImportService Function(String rootPath)? serviceFactory;
+
+  /// 测试注入：来源选择器（默认系统文件选择）。
+  final MigrationSourcePicker? picker;
   final String initialSourcePath;
 
   @override
@@ -28,6 +33,8 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
   late final TextEditingController _path = TextEditingController(
     text: widget.initialSourcePath,
   );
+  late final MigrationSourcePicker _picker =
+      widget.picker ?? FilePickerMigrationSourcePicker();
 
   AstrBotImportService? _service;
   MigrationDryRun? _dryRun;
@@ -59,6 +66,46 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
         );
     _service = service;
     return service;
+  }
+
+  /// 通过系统选择器选择来源，成功后自动预演。
+  Future<void> _pickSource(
+    Future<PickedMigrationSource?> Function() pick, {
+    required String failureHint,
+  }) async {
+    if (_busy) return;
+    PickedMigrationSource? picked;
+    try {
+      picked = await pick();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('$failureHint：$e')));
+      return;
+    }
+    final source = picked;
+    if (source == null || !mounted) return;
+    setState(() {
+      _path.text = source.rootPath;
+      _service = null;
+      _dryRun = null;
+      _batch = null;
+      _reconcile = null;
+      _rollback = null;
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            source.fromArchive
+                ? '已解压「${source.label}」，正在预演'
+                : '已选择「${source.label}」，正在预演',
+          ),
+        ),
+      );
+    await _runDryRun();
   }
 
   Future<void> _runDryRun() async {
@@ -230,6 +277,54 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
                           BubbleRadius.button,
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          key: const Key('migration-pick-archive'),
+                          onPressed: _busy
+                              ? null
+                              : () => _pickSource(
+                                  _picker.pickArchive,
+                                  failureHint: '选择压缩包失败',
+                                ),
+                          icon: const Icon(Icons.folder_zip_outlined, size: 18),
+                          label: const Text('选择 .zip 压缩包'),
+                        ),
+                      ),
+                      if (_picker.supportsDirectory) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('migration-pick-directory'),
+                            onPressed: _busy
+                                ? null
+                                : () => _pickSource(
+                                    _picker.pickDirectory,
+                                    failureHint: '选择文件夹失败',
+                                  ),
+                            icon: const Icon(
+                              Icons.folder_open_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('选择文件夹'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'iOS / Android 请选择 .zip 压缩包；桌面版可直接选择文件夹。'
+                    '压缩包会解压到临时目录，源文件不会被修改。',
+                    style: TextStyle(
+                      fontSize: BubbleFontSize.badge,
+                      height: 1.4,
+                      color: Theme.of(context).colorScheme.onSurface
+                          .withValues(alpha: 0.5),
                     ),
                   ),
                   const SizedBox(height: 10),
