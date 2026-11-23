@@ -106,6 +106,23 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
+  testWidgets('测试通知按钮安排 3 秒后的聊天通知', (tester) async {
+    scheduler = FakeNotificationScheduler(permission: true);
+    await pumpPage(tester);
+
+    await tester.tap(find.byKey(const ValueKey('notif-test-send')));
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(scheduler.scheduled, hasLength(1));
+    final plan = scheduler.scheduled.single;
+    expect(plan.payload.type, 'chat');
+    expect(plan.fireAt, DateTime(2026, 5, 21, 12, 0, 3));
+    expect(find.text('已安排，3 秒后到达；请回到桌面查看，点击通知会打开聊天'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('平台不支持通知时如实说明，不显示开启按钮', (tester) async {
     scheduler.supportedValue = false;
     await pumpPage(tester);

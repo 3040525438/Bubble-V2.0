@@ -45,6 +45,7 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
   RollbackResult? _rollback;
 
   bool _busy = false;
+  bool _overwrite = true;
   int _stepDone = 0;
   int _stepTotal = 0;
   String _phase = '';
@@ -147,6 +148,7 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
     String? error;
     try {
       batch = await _ensureService().run(
+        overwrite: _overwrite,
         onProgress: (done, total, phase) {
           if (!mounted) return;
           setState(() {
@@ -343,6 +345,27 @@ class _MigrationWizardPageState extends State<MigrationWizardPage> {
               ),
             ),
             const SizedBox(height: 14),
+            // 覆盖开关：重复导入时用源数据更新此前的导入内容（聊天消息永不改写）
+            SwitchListTile(
+              key: const Key('migration-overwrite'),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _overwrite,
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() => _overwrite = value),
+              title: const Text('覆盖此前导入的同源内容'),
+              subtitle: Text(
+                '开启后，重复导入会更新已存在的说说 / 日记 / 信件 / 记忆 / 人格提示词；'
+                '你手写的日记与聊天消息不会被改写。关闭则只补缺失项。',
+                style: TextStyle(
+                  fontSize: BubbleFontSize.badge,
+                  height: 1.4,
+                  color: Theme.of(context).colorScheme.onSurface
+                      .withValues(alpha: 0.5),
+                ),
+              ),
+            ),
             Row(
               children: [
                 Expanded(

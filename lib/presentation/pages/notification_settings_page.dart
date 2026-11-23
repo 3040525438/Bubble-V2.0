@@ -44,6 +44,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   bool _saving = false;
   bool _permissionEnabled = false;
   bool _requesting = false;
+  bool _sendingTest = false;
   int _activeCount = 0;
   int _todayCount = 0;
 
@@ -103,6 +104,56 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     }
   }
 
+  /// 发送一条 3 秒后到达的测试通知（不依赖模型与主动行为评分）。
+  /// 用于真机验证：权限、隐私档位渲染、通知点击深链。
+  Future<void> _sendTestNotification() async {
+    if (!_scheduler.supported) {
+      _showToast('当前平台不支持本地通知（需 iOS / Android 真机）');
+      return;
+    }
+    if (!await _scheduler.isEnabled()) {
+      _showToast('通知权限未开启，请先点上面的「开启通知」');
+      return;
+    }
+    setState(() => _sendingTest = true);
+    try {
+      final rendered = renderNotification(
+        privacy: _settings.privacyMode,
+        sourceLabel: '泡泡',
+        messageText: '这是一条测试通知，点我会回到聊天。',
+      );
+      final now = _clock();
+      await _scheduler.schedule(
+        NotificationPlan(
+          notificationId: 'test_${now.millisecondsSinceEpoch}',
+          fireAt: now.add(const Duration(seconds: 3)),
+          title: rendered.title,
+          body: rendered.body,
+          payload: const NotificationPayload(type: 'chat'),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _activeCount += 1;
+        _todayCount += 1;
+      });
+      _showToast('已安排，3 秒后到达；请回到桌面查看，点击通知会打开聊天');
+    } catch (e) {
+      if (!mounted) return;
+      _showToast('测试通知发送失败：$e');
+    } finally {
+      if (mounted) setState(() => _sendingTest = false);
+    }
+  }
+
+  void _showToast(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+  }
+
   Future<void> _pickQuiet({required bool isStart}) async {
     final text = isStart ? _settings.quietStart : _settings.quietEnd;
     final parts = text.split(':');
@@ -155,6 +206,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               children: [
                 _permissionCard(onSurface),
                 const SizedBox(height: 16),
+                _testCard(onSurface),
+                const SizedBox(height: 16),
                 _sectionTitle('通知里显示什么'),
                 _privacyCard(onSurface),
                 const SizedBox(height: 16),
@@ -196,6 +249,57 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: child,
+      ),
+    );
+  }
+
+  /// 测试通知入口：真机自行验证权限 / 样式 / 点击跳转。
+  Widget _testCard(Color onSurface) {
+    final semantic = context.bubbleColors;
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.science_outlined,
+                size: 20,
+                color: semantic.lavenderDeep,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '试一试',
+                  style: TextStyle(
+                    fontSize: BubbleFontSize.cardTitle,
+                    fontWeight: FontWeight.w600,
+                    color: onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '发一条 3 秒后到达的测试通知，用来验证权限、隐私档位样式与点击跳转；'
+            '不依赖模型配置，也不会产生聊天消息。',
+            style: TextStyle(
+              fontSize: BubbleFontSize.badge,
+              height: 1.5,
+              color: onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonal(
+              key: const ValueKey('notif-test-send'),
+              onPressed: _sendingTest ? null : _sendTestNotification,
+              child: Text(_sendingTest ? '安排中…' : '发送测试通知（3 秒后）'),
+            ),
+          ),
+        ],
       ),
     );
   }

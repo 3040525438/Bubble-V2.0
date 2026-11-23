@@ -232,6 +232,9 @@ class AstrBotImportService {
 
   Future<ImportBatchResult> run({
     bool createPreMigrationBackup = true,
+
+    /// true：已导入的同源内容用源数据覆盖更新（聊天消息永不改写）
+    bool overwrite = false,
     void Function(int done, int total, String phase)? onProgress,
   }) async {
     final startedAt = _nowIso();
@@ -278,7 +281,12 @@ class AstrBotImportService {
     // ② 长期记忆
     try {
       final memories = await _readableMemories();
-      final result = await _importMemories(memories, recorder, existing);
+      final result = await _importMemories(
+        memories,
+        recorder,
+        existing,
+        overwrite: overwrite,
+      );
       imported[MigrationCategory.memory] = result.imported;
       skipped[MigrationCategory.memory] = result.skipped;
       failed += result.failed;
@@ -300,6 +308,19 @@ class AstrBotImportService {
           if (!hasCore) {
             // 旧批次可能「已导入但未激活」：无核心人格时补一次激活（幂等）
             await _activateImportedPersona(persona);
+          }
+          if (overwrite) {
+            await _overwritePersonaVersion(persona);
+            bump(imported, MigrationCategory.persona);
+            recorder.add(
+              category: MigrationCategory.persona,
+              status: 'migrated',
+              sourceRef: ref,
+              targetTable: 'persona_versions',
+              targetId: _personaVersionId(persona.personaId),
+              notes: hasCore ? '覆盖更新提示词（仍需人工确认启用）' : '覆盖更新并已生效',
+            );
+            continue;
           }
           bump(skipped, MigrationCategory.persona);
           recorder.add(
@@ -343,7 +364,12 @@ class AstrBotImportService {
     // ④ 关系
     try {
       final companions = await source.companions();
-      final result = await _importRelations(companions, recorder, existing);
+      final result = await _importRelations(
+        companions,
+        recorder,
+        existing,
+        overwrite: overwrite,
+      );
       imported[MigrationCategory.relation] = result.imported;
       skipped[MigrationCategory.relation] = result.skipped;
       failed += result.failed;
@@ -357,7 +383,12 @@ class AstrBotImportService {
     // ⑤ 说说（qzone 插件 posts_*.db）
     try {
       final posts = await source.posts();
-      final result = await _importPosts(posts, recorder, existing);
+      final result = await _importPosts(
+        posts,
+        recorder,
+        existing,
+        overwrite: overwrite,
+      );
       imported[MigrationCategory.post] = result.imported;
       skipped[MigrationCategory.post] = result.skipped;
       failed += result.failed;
@@ -371,7 +402,12 @@ class AstrBotImportService {
     // ⑥ 日记
     try {
       final diaries = await source.diaries();
-      final result = await _importDiaries(diaries, recorder, existing);
+      final result = await _importDiaries(
+        diaries,
+        recorder,
+        existing,
+        overwrite: overwrite,
+      );
       imported[MigrationCategory.diary] = result.imported;
       skipped[MigrationCategory.diary] = result.skipped;
       failed += result.failed;
@@ -385,7 +421,12 @@ class AstrBotImportService {
     // ⑦ 信件
     try {
       final letters = await source.letters();
-      final result = await _importLetters(letters, recorder, existing);
+      final result = await _importLetters(
+        letters,
+        recorder,
+        existing,
+        overwrite: overwrite,
+      );
       imported[MigrationCategory.letter] = result.imported;
       skipped[MigrationCategory.letter] = result.skipped;
       failed += result.failed;
@@ -399,7 +440,12 @@ class AstrBotImportService {
     // ⑧ 读书笔记
     try {
       final books = await source.bookNotes();
-      final result = await _importBooks(books, recorder, existing);
+      final result = await _importBooks(
+        books,
+        recorder,
+        existing,
+        overwrite: overwrite,
+      );
       imported[MigrationCategory.bookNote] = result.imported;
       skipped[MigrationCategory.bookNote] = result.skipped;
       failed += result.failed;
@@ -782,8 +828,9 @@ class AstrBotImportService {
   _importMemories(
     List<AstrMemoryRow> memories,
     _Recorder recorder,
-    Set<String> existing,
-  ) async {
+    Set<String> existing, {
+    bool overwrite = false,
+  }) async {
     var imported = 0;
     var skipped = 0;
     var failed = 0;
@@ -797,10 +844,46 @@ class AstrBotImportService {
       existingSummaries.add(row.summary.trim());
     }
 
-    final companions = <MemoriesCompanion>[];
+    final fresh = <MemoriesCompanion>[];
+    final updates = <MemoriesCompanion>[];
     for (final memory in memories) {
       final ref = 'memory:<${memory.id}>';
+      final id = 'import_mem_${memory.id}';
+      final type = switch (memory.kind) {
+        'fact' => 'preference',
+        'diary' => 'experience_joint',
+        _ => 'event',
+      };
+      final summary = _truncate(memory.text, 200);
+      final createdAt = _dayIso(memory.day);
+      final companion = MemoriesCompanion(
+        id: Value(id),
+        type: Value(type),
+        status: const Value('active'),
+        title: Value('${memory.day} · ${memory.kind}'),
+        summary: Value(summary),
+        body: Value(memory.text),
+        confidence: const Value('medium'),
+        importance: const Value(50),
+        evidence: Value('astrbot:mem:${memory.id}'),
+        createdAt: Value(createdAt),
+        updatedAt: Value(createdAt),
+        deletedAt: const Value(null),
+      );
       if (existing.contains(ref)) {
+        if (overwrite) {
+          updates.add(companion);
+          imported++;
+          recorder.add(
+            category: MigrationCategory.memory,
+            status: 'migrated',
+            sourceRef: ref,
+            targetTable: 'memories',
+            targetId: id,
+            notes: '覆盖更新（type=$type）',
+          );
+          continue;
+        }
         skipped++;
         recorder.add(
           category: MigrationCategory.memory,
@@ -810,7 +893,6 @@ class AstrBotImportService {
         );
         continue;
       }
-      final summary = _truncate(memory.text, 200);
       if (existingSummaries.contains(summary.trim())) {
         skipped++;
         recorder.add(
@@ -821,28 +903,7 @@ class AstrBotImportService {
         );
         continue;
       }
-      final id = 'import_mem_${memory.id}';
-      final type = switch (memory.kind) {
-        'fact' => 'preference',
-        'diary' => 'experience_joint',
-        _ => 'event',
-      };
-      final createdAt = _dayIso(memory.day);
-      companions.add(
-        MemoriesCompanion.insert(
-          id: id,
-          type: type,
-          status: const Value('active'),
-          title: Value('${memory.day} · ${memory.kind}'),
-          summary: summary,
-          body: Value(memory.text),
-          confidence: const Value('medium'),
-          importance: const Value(50),
-          evidence: Value('astrbot:mem:${memory.id}'),
-          createdAt: createdAt,
-          updatedAt: createdAt,
-        ),
-      );
+      fresh.add(companion);
       existingSummaries.add(summary.trim());
       imported++;
       recorder.add(
@@ -855,18 +916,22 @@ class AstrBotImportService {
       );
     }
 
-    if (companions.isNotEmpty) {
+    if (fresh.isNotEmpty) {
       try {
         await _db.batch((batch) {
-          batch.insertAll(
-            _db.memories,
-            companions,
-            mode: InsertMode.insertOrIgnore,
-          );
+          batch.insertAll(_db.memories, fresh, mode: InsertMode.insertOrIgnore);
         });
       } catch (e) {
-        failed += companions.length;
+        failed += fresh.length;
         errors.add('记忆写入失败：$e');
+      }
+    }
+    for (final companion in updates) {
+      try {
+        await _db.into(_db.memories).insertOnConflictUpdate(companion);
+      } catch (e) {
+        failed++;
+        errors.add('记忆覆盖失败：$e');
       }
     }
     return (
@@ -967,6 +1032,37 @@ class AstrBotImportService {
     }
   }
 
+  /// 覆盖模式下更新已导入的人格版本提示词；若该版本正生效则同步主档案快照。
+  Future<void> _overwritePersonaVersion(AstrPersonaRow persona) async {
+    final versionId = _personaVersionId(persona.personaId);
+    final content = jsonEncode({
+      'name': persona.personaId,
+      'systemPrompt': persona.systemPrompt,
+      'source': 'astrbot',
+    });
+    await (_db.update(
+      _db.personaVersions,
+    )..where((t) => t.id.equals(versionId))).write(
+      PersonaVersionsCompanion(
+        content: Value(content),
+        changeReason: const Value('AstrBot 迁移（覆盖更新）'),
+      ),
+    );
+    final profile = await (_db.select(
+      _db.personaProfiles,
+    )..limit(1)).getSingleOrNull();
+    if (profile != null && profile.activeVersionId == versionId) {
+      await (_db.update(
+        _db.personaProfiles,
+      )..where((t) => t.id.equals(profile.id))).write(
+        PersonaProfilesCompanion(
+          coreSystemPrompt: Value(persona.systemPrompt),
+          updatedAt: Value(_nowIso()),
+        ),
+      );
+    }
+  }
+
   Future<bool> _hasActiveCorePersona() async {
     final profile = await (_db.select(
       _db.personaProfiles,
@@ -989,24 +1085,63 @@ class AstrBotImportService {
   _importRelations(
     List<AstrCompanion> companions,
     _Recorder recorder,
-    Set<String> existing,
-  ) async {
+    Set<String> existing, {
+    bool overwrite = false,
+  }) async {
     var imported = 0;
     var skipped = 0;
     var failed = 0;
     final errors = <String>[];
     final rows = <MemoriesCompanion>[];
+    final updates = <MemoriesCompanion>[];
 
     for (final companion in companions) {
       final ref = 'relation:<${companion.userId}>';
       if (existing.contains(ref)) {
-        skipped++;
-        recorder.add(
-          category: MigrationCategory.relation,
-          status: 'skipped',
-          sourceRef: ref,
-          notes: '已导入，幂等跳过',
-        );
+        if (overwrite) {
+          final id = 'import_rel_${_sanitize(companion.userId)}';
+          final name = companion.nickname == null || companion.nickname!.isEmpty
+              ? companion.userId
+              : companion.nickname!;
+          final summary = _truncate(
+            '与 $name 的关系：${companion.role}；关系分 ${companion.score}',
+            200,
+          );
+          final createdAt = _nowIso();
+          updates.add(
+            MemoriesCompanion(
+              id: Value(id),
+              type: const Value('profile'),
+              status: const Value('active'),
+              title: Value('与 $name 的关系'),
+              summary: Value(summary),
+              body: const Value(null),
+              confidence: const Value('medium'),
+              importance: const Value(60),
+              evidence: Value('astrbot:companion:${companion.userId}'),
+              createdAt: Value(createdAt),
+              updatedAt: Value(createdAt),
+              deletedAt: const Value(null),
+            ),
+          );
+          imported++;
+          recorder.add(
+            category: MigrationCategory.relation,
+            status: 'migrated',
+            sourceRef: ref,
+            targetTable: 'memories',
+            targetId: id,
+            notes: '覆盖更新（关系摘要）',
+          );
+        } else {
+          skipped++;
+          recorder.add(
+            category: MigrationCategory.relation,
+            status: 'skipped',
+            sourceRef: ref,
+            notes: '已导入，幂等跳过',
+          );
+        }
       } else {
         final id = 'import_rel_${_sanitize(companion.userId)}';
         final name = companion.nickname == null || companion.nickname!.isEmpty
@@ -1047,13 +1182,50 @@ class AstrBotImportService {
         final item = companion.items[i];
         final ref = 'relation_item:<${companion.userId}>:$i';
         if (existing.contains(ref)) {
-          skipped++;
-          recorder.add(
-            category: MigrationCategory.relation,
-            status: 'skipped',
-            sourceRef: ref,
-            notes: '已导入，幂等跳过',
-          );
+          if (overwrite) {
+            final id = 'import_cm_${_sanitize(companion.userId)}_$i';
+            final type = switch (item.kind) {
+              'boundary' => 'preference',
+              'important' => 'event',
+              _ => 'profile',
+            };
+            final createdAt = _nowIso();
+            updates.add(
+              MemoriesCompanion(
+                id: Value(id),
+                type: Value(type),
+                status: const Value('active'),
+                title: Value('伴侣记忆 · ${item.kind}'),
+                summary: Value(_truncate(item.text, 200)),
+                body: Value(item.text),
+                confidence: const Value('medium'),
+                importance: Value(item.kind == 'important' ? 70 : 50),
+                evidence: Value(
+                  'astrbot:companion:${companion.userId}:item:$i',
+                ),
+                createdAt: Value(createdAt),
+                updatedAt: Value(createdAt),
+                deletedAt: const Value(null),
+              ),
+            );
+            imported++;
+            recorder.add(
+              category: MigrationCategory.relation,
+              status: 'migrated',
+              sourceRef: ref,
+              targetTable: 'memories',
+              targetId: id,
+              notes: '覆盖更新（伴侣记忆条目）',
+            );
+          } else {
+            skipped++;
+            recorder.add(
+              category: MigrationCategory.relation,
+              status: 'skipped',
+              sourceRef: ref,
+              notes: '已导入，幂等跳过',
+            );
+          }
           continue;
         }
         final id = 'import_cm_${_sanitize(companion.userId)}_$i';
@@ -1100,6 +1272,14 @@ class AstrBotImportService {
         errors.add('关系记忆写入失败：$e');
       }
     }
+    for (final companion in updates) {
+      try {
+        await _db.into(_db.memories).insertOnConflictUpdate(companion);
+      } catch (e) {
+        failed++;
+        errors.add('关系记忆覆盖失败：$e');
+      }
+    }
     return (
       imported: imported,
       skipped: skipped,
@@ -1125,15 +1305,49 @@ class AstrBotImportService {
   _importPosts(
     List<AstrPostRow> rows,
     _Recorder recorder,
-    Set<String> existing,
-  ) async {
+    Set<String> existing, {
+    bool overwrite = false,
+  }) async {
     var imported = 0;
     var skipped = 0;
     var failed = 0;
     final errors = <String>[];
     for (final post in rows) {
       final ref = 'post:<${post.tid}>';
+      final id = 'import_post_${_sanitize(post.tid)}';
       if (existing.contains(ref)) {
+        if (overwrite) {
+          try {
+            await _db
+                .into(_db.posts)
+                .insertOnConflictUpdate(
+                  PostsCompanion(
+                    id: Value(id),
+                    content: Value(post.content),
+                    origin: const Value('autonomous'),
+                    publishedAt: Value(
+                      post.createdAtMs > 0
+                          ? post.createdAtMs
+                          : DateTime.now().millisecondsSinceEpoch,
+                    ),
+                    deletedAt: const Value(null),
+                  ),
+                );
+            imported++;
+            recorder.add(
+              category: MigrationCategory.post,
+              status: 'migrated',
+              sourceRef: ref,
+              targetTable: 'posts',
+              targetId: id,
+              notes: '覆盖更新',
+            );
+          } catch (e) {
+            failed++;
+            errors.add('说说 ${post.tid} 覆盖失败：$e');
+          }
+          continue;
+        }
         skipped++;
         recorder.add(
           category: MigrationCategory.post,
@@ -1143,7 +1357,6 @@ class AstrBotImportService {
         );
         continue;
       }
-      final id = 'import_post_${_sanitize(post.tid)}';
       try {
         await _db
             .into(_db.posts)
@@ -1184,8 +1397,9 @@ class AstrBotImportService {
   _importDiaries(
     List<AstrTextDoc> docs,
     _Recorder recorder,
-    Set<String> existing,
-  ) async {
+    Set<String> existing, {
+    bool overwrite = false,
+  }) async {
     var imported = 0;
     var skipped = 0;
     var failed = 0;
@@ -1194,7 +1408,42 @@ class AstrBotImportService {
 
     for (final doc in docs) {
       final ref = 'diary:<${doc.name}>';
+      final date = doc.date;
+      if (date == null) continue;
+      final id = 'import_diary_$date';
+      final createdAt = _dayIso(date);
       if (existing.contains(ref)) {
+        if (overwrite) {
+          try {
+            await _db
+                .into(_db.diaries)
+                .insertOnConflictUpdate(
+                  DiariesCompanion(
+                    id: Value(id),
+                    entryDate: Value(date),
+                    content: Value(doc.content.trim()),
+                    origin: const Value('ai_organized'),
+                    createdAt: Value(createdAt),
+                    updatedAt: Value(_nowIso()),
+                    deletedAt: const Value(null),
+                  ),
+                );
+            dates.add(date);
+            imported++;
+            recorder.add(
+              category: MigrationCategory.diary,
+              status: 'migrated',
+              sourceRef: ref,
+              targetTable: 'diaries',
+              targetId: id,
+              notes: '覆盖更新',
+            );
+          } catch (e) {
+            failed++;
+            errors.add('日记 $date 覆盖失败：$e');
+          }
+          continue;
+        }
         skipped++;
         recorder.add(
           category: MigrationCategory.diary,
@@ -1204,8 +1453,6 @@ class AstrBotImportService {
         );
         continue;
       }
-      final date = doc.date;
-      if (date == null) continue;
       if (dates.contains(date)) {
         skipped++;
         recorder.add(
@@ -1216,8 +1463,6 @@ class AstrBotImportService {
         );
         continue;
       }
-      final id = 'import_diary_$date';
-      final createdAt = _dayIso(date);
       try {
         await _db
             .into(_db.diaries)
@@ -1281,8 +1526,9 @@ class AstrBotImportService {
   _importLetters(
     List<AstrTextDoc> docs,
     _Recorder recorder,
-    Set<String> existing,
-  ) async {
+    Set<String> existing, {
+    bool overwrite = false,
+  }) async {
     var imported = 0;
     var skipped = 0;
     var failed = 0;
@@ -1300,7 +1546,42 @@ class AstrBotImportService {
 
     for (final doc in deduped.chosen) {
       final ref = 'letter:<${doc.sha256}>';
+      final id = 'import_letter_${doc.sha256.substring(0, 16)}';
+      final title = doc.name.replaceAll(RegExp(r'\.md$'), '');
+      final sentMs = doc.date == null
+          ? _now().millisecondsSinceEpoch
+          : (DateTime.tryParse(doc.date!)?.millisecondsSinceEpoch ??
+                _now().millisecondsSinceEpoch);
       if (existing.contains(ref)) {
+        if (overwrite) {
+          try {
+            await _db
+                .into(_db.letters)
+                .insertOnConflictUpdate(
+                  LettersCompanion(
+                    id: Value(id),
+                    direction: const Value('bubble_to_user'),
+                    state: const Value('sent'),
+                    title: Value(title),
+                    content: Value(doc.content.trim()),
+                    sentAt: Value(sentMs),
+                  ),
+                );
+            imported++;
+            recorder.add(
+              category: MigrationCategory.letter,
+              status: 'migrated',
+              sourceRef: ref,
+              targetTable: 'letters',
+              targetId: id,
+              notes: '覆盖更新',
+            );
+          } catch (e) {
+            failed++;
+            errors.add('信件覆盖失败：$e');
+          }
+          continue;
+        }
         skipped++;
         recorder.add(
           category: MigrationCategory.letter,
@@ -1310,12 +1591,6 @@ class AstrBotImportService {
         );
         continue;
       }
-      final id = 'import_letter_${doc.sha256.substring(0, 16)}';
-      final title = doc.name.replaceAll(RegExp(r'\.md$'), '');
-      final sentMs = doc.date == null
-          ? _now().millisecondsSinceEpoch
-          : (DateTime.tryParse(doc.date!)?.millisecondsSinceEpoch ??
-                _now().millisecondsSinceEpoch);
       try {
         await _db
             .into(_db.letters)
@@ -1355,15 +1630,54 @@ class AstrBotImportService {
   _importBooks(
     List<AstrTextDoc> docs,
     _Recorder recorder,
-    Set<String> existing,
-  ) async {
+    Set<String> existing, {
+    bool overwrite = false,
+  }) async {
     var imported = 0;
     var skipped = 0;
     var failed = 0;
     final errors = <String>[];
     for (final doc in docs) {
       final ref = 'book:<${doc.sha256}>';
+      final id = 'import_book_${doc.sha256.substring(0, 16)}';
+      final title = doc.name.replaceAll(RegExp(r'\.md$'), '');
+      final createdAt = _nowIso();
       if (existing.contains(ref)) {
+        if (overwrite) {
+          try {
+            await _db
+                .into(_db.memories)
+                .insertOnConflictUpdate(
+                  MemoriesCompanion(
+                    id: Value(id),
+                    type: const Value('knowledge'),
+                    status: const Value('active'),
+                    title: Value(title),
+                    summary: Value(_truncate(doc.content, 200)),
+                    body: Value(doc.content),
+                    confidence: const Value('medium'),
+                    importance: const Value(40),
+                    evidence: Value('astrbot:book:${doc.sha256}'),
+                    createdAt: Value(createdAt),
+                    updatedAt: Value(createdAt),
+                    deletedAt: const Value(null),
+                  ),
+                );
+            imported++;
+            recorder.add(
+              category: MigrationCategory.bookNote,
+              status: 'migrated',
+              sourceRef: ref,
+              targetTable: 'memories',
+              targetId: id,
+              notes: '覆盖更新',
+            );
+          } catch (e) {
+            failed++;
+            errors.add('读书笔记覆盖失败：$e');
+          }
+          continue;
+        }
         skipped++;
         recorder.add(
           category: MigrationCategory.bookNote,
@@ -1373,9 +1687,6 @@ class AstrBotImportService {
         );
         continue;
       }
-      final id = 'import_book_${doc.sha256.substring(0, 16)}';
-      final title = doc.name.replaceAll(RegExp(r'\.md$'), '');
-      final createdAt = _nowIso();
       try {
         await _db
             .into(_db.memories)

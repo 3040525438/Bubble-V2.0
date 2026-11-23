@@ -8,6 +8,7 @@ import 'package:bubble/data/database/open_db.dart';
 import 'package:bubble/data/migration/astrbot_import_service.dart';
 import 'package:bubble/data/migration/astrbot_source.dart';
 import 'package:bubble/domain/migration/migration_models.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 
 /// 注入式只读 SQL：按查询特征返回预设行。
@@ -84,7 +85,7 @@ class FakeReadOnlySql implements ReadOnlySql {
 class DiaryAndPostsFakeSql extends FakeReadOnlySql {
   @override
   List<Map<String, Object?>> query(String dbPath, String sql) {
-    if (dbPath.endsWith('memory.db')) {
+    if (dbPath.replaceAll('\\', '/').endsWith('diary/memory.db')) {
       return [
         {'id': 1, 'kind': 'diary', 'day': '2026-10-23', 'text': '库里的日记'},
         {
@@ -331,6 +332,58 @@ void main() {
     expect(profile.coreSystemPrompt, contains('鲸鱼娘'));
     final versions = await db.select(db.personaVersions).get();
     expect(versions.single.isActive, 1);
+
+    customSource.dispose();
+  });
+
+  test('覆盖模式会用源数据更新已导入内容（聊天消息不覆盖）', () async {
+    await writeFile('data/plugin_data/astrbot_plugin_qzone/posts_5.db', '');
+    final customSource = AstrBotSource(
+      rootPath: root.path,
+      sql: DiaryAndPostsFakeSql(),
+    );
+    final custom = AstrBotImportService(
+      db,
+      source: customSource,
+      clock: () => DateTime.utc(2026, 11, 20, 9, 30),
+    );
+
+    final first = await custom.run(createPreMigrationBackup: false);
+    expect(first.imported[MigrationCategory.post], 2);
+
+    // 模拟用户本地修改导入内容，覆盖模式应恢复为源内容
+    await (db.update(db.posts)..where((t) => t.id.equals('import_post_t1')))
+        .write(const PostsCompanion(content: Value('本地改过的内容')));
+    await (db.update(db.diaries)
+          ..where((t) => t.id.equals('import_diary_2026-10-23')))
+        .write(const DiariesCompanion(content: Value('本地改过的日记')));
+
+    final beforeMessages = {
+      for (final m in await db.select(db.messages).get()) m.id: m.content,
+    };
+    expect(beforeMessages, isNotEmpty);
+
+    final second = await custom.run(
+      createPreMigrationBackup: false,
+      overwrite: true,
+    );
+    expect(second.imported[MigrationCategory.post], 2);
+    expect(second.imported[MigrationCategory.diary], 2);
+
+    final post = (await db.select(db.posts).get()).firstWhere(
+      (p) => p.id == 'import_post_t1',
+    );
+    expect(post.content, '今天趴窗边看雨');
+    final diary = (await db.select(db.diaries).get()).firstWhere(
+      (d) => d.entryDate == '2026-10-23',
+    );
+    expect(diary.content, '库里的日记');
+
+    // 聊天消息不参与覆盖：二次导入后与首次完全一致
+    final afterMessages = {
+      for (final m in await db.select(db.messages).get()) m.id: m.content,
+    };
+    expect(afterMessages, beforeMessages);
 
     customSource.dispose();
   });
